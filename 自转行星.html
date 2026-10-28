@@ -1,0 +1,2069 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <title>四国世界 · 自转行星</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: #050709;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif;
+    }
+
+    #cv {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: grab;
+    }
+
+    #cv:active {
+      cursor: grabbing;
+    }
+
+    #hud {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: #8fa0b0;
+      font-size: 12px;
+      line-height: 1.8;
+      pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, .8);
+    }
+
+    #hud b {
+      color: #c8d8e8;
+      font-weight: 600;
+    }
+
+    #toolbar {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+    }
+
+    button {
+      background: rgba(30, 40, 50, .7);
+      color: #d0d8e0;
+      border: 1px solid rgba(255, 255, 255, .12);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      backdrop-filter: blur(6px);
+      transition: background .15s;
+    }
+
+    button:hover {
+      background: rgba(50, 60, 70, .8);
+    }
+
+    button:active {
+      background: rgba(20, 30, 40, .9);
+    }
+
+    button.active {
+      background: rgba(70, 110, 150, .85);
+      border-color: rgba(150, 200, 255, .4);
+      color: #fff;
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    #seasonBtn {
+      background: rgba(60, 90, 50, .7);
+      border-color: rgba(120, 200, 100, .3);
+    }
+
+    #seasonBtn:hover {
+      background: rgba(80, 120, 65, .8);
+    }
+
+    #downloadBtn {
+      background: rgba(80, 60, 90, .7);
+      border-color: rgba(180, 140, 220, .3);
+    }
+
+    #downloadBtn:hover {
+      background: rgba(100, 80, 120, .8);
+    }
+
+    #err {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      color: #e08080;
+      font-size: 12px;
+      font-family: monospace;
+      max-width: 80vw;
+      white-space: pre-wrap;
+      pointer-events: none;
+    }
+
+    #legend {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, .62);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #b8c8d4;
+      font-size: 11px;
+      line-height: 1.6;
+      pointer-events: none;
+      min-width: 200px;
+      max-height: 78vh;
+      overflow: hidden;
+      transition: opacity .5s;
+    }
+
+    #legend .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 1px 0;
+    }
+
+    #legend .sw {
+      width: 16px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    #legend .sw.line {
+      height: 3px;
+    }
+
+    #legend .sw.dash {
+      height: 3px;
+      background: transparent !important;
+      background-image: repeating-linear-gradient(to right, #1a1a1a 0 3px, transparent 3px 6px) !important;
+    }
+
+    #legend .title {
+      color: #8a98a8;
+      margin-bottom: 6px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    #legend .cols {
+      display: flex;
+      gap: 12px;
+    }
+
+    #legend .col {
+      flex: 1;
+    }
+
+    #legend hr {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, .1);
+      margin: 6px 0;
+    }
+
+    #legend .hint {
+      color: #667a86;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    #planetInfo {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, .62);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #b8c8d4;
+      font-size: 11px;
+      line-height: 1.6;
+      pointer-events: none;
+      min-width: 180px;
+    }
+
+    #planetInfo .title {
+      color: #8a98a8;
+      margin-bottom: 6px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    #planetInfo .kv {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    #planetInfo .kv span:last-child {
+      color: #d8dee4;
+    }
+
+    #planetInfo hr {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, .08);
+      margin: 5px 0;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #050709;
+      z-index: 1000;
+      transition: opacity .6s ease;
+    }
+
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #loading .title {
+      color: #c8d8e8;
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: 12px;
+      margin-bottom: 32px;
+      text-indent: 12px;
+      text-shadow: 0 0 24px rgba(120, 180, 255, .3);
+    }
+
+    #loading .bar {
+      width: 320px;
+      height: 2px;
+      background: rgba(255, 255, 255, .08);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #loading .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3a7ab8, #6aaee0);
+      border-radius: 2px;
+      transition: width .15s ease;
+      box-shadow: 0 0 12px rgba(106, 174, 224, .6);
+    }
+
+    #loading .status {
+      color: #5a6a78;
+      font-size: 11px;
+      margin-top: 18px;
+      font-family: monospace;
+      letter-spacing: 1px;
+      min-height: 16px;
+    }
+
+    #loading .percent {
+      color: #8fa0b0;
+      font-size: 12px;
+      margin-top: 6px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="cv"></canvas>
+  <div id="hud">
+    <div>种子 <b id="seedEl">—</b></div>
+    <div>拖动旋转 · 滚轮缩放</div>
+    <div>自转中 · 太阳光照世界固定</div>
+  </div>
+  <div id="toolbar">
+    <button id="modeBtn" class="active">等高图</button>
+    <button id="seasonBtn">春分</button>
+    <button id="regenBtn">重新生成</button>
+    <button id="resetBtn">复位视角</button>
+    <button id="spinBtn">暂停自转</button>
+    <button id="downloadBtn">下载地图</button>
+  </div>
+  <div id="legend" style="opacity:0">
+    <div id="legendContent"></div>
+  </div>
+  <div id="err"></div>
+  <div id="planetInfo">
+    <div class="title">行星参数</div>
+    <div class="kv"><span>轴倾角</span><span id="infoTilt">—</span></div>
+    <div class="kv"><span>一日</span><span id="infoDay">—</span></div>
+    <div class="kv"><span>一年</span><span id="infoYear">—</span></div>
+    <hr>
+    <div class="kv"><span>海陆比</span><span id="infoLandSea">—</span></div>
+    <div class="kv"><span>极地最低</span><span id="infoMinTemp">—</span></div>
+    <div class="kv"><span>赤道最高</span><span id="infoMaxTemp">—</span></div>
+    <hr>
+    <div class="kv"><span>回归线</span><span id="infoTropic">—</span></div>
+    <div class="kv"><span>极圈</span><span id="infoPolar">—</span></div>
+    <hr>
+    <div class="kv"><span>季节</span><span id="infoSeason">春分</span></div>
+  </div>
+  <div id="loading">
+    <div class="title">生 成 行 星 中</div>
+    <div class="bar">
+      <div class="bar-fill" id="barFill"></div>
+    </div>
+    <div class="status" id="loadStatus">初始化…</div>
+    <div class="percent" id="loadPercent">0%</div>
+  </div>
+  <script>
+    setTimeout(function () {
+      (function () {
+        'use strict';
+
+        /* ===================== 常量 ===================== */
+        const ICO_SUBDIV = 7;                 // 40962 顶点 / 81920 面
+        const COAST_GRID_W = 512, COAST_GRID_H = 256;
+        const COAST_MAX_SEARCH = 24;
+        const CHUNK_VERTS = 2048;
+
+        const TEX_W = 256, TEX_H = 128;
+        const TEMP_ATLAS_H = TEX_H * 4;
+
+        const TEMP_NORM_MIN = -125;
+        const TEMP_NORM_MAX = 50;
+        const TEMP_NORM_RANGE = TEMP_NORM_MAX - TEMP_NORM_MIN;
+
+        const MODE_ELEV = 0, MODE_TEMP = 1, MODE_HUMIDITY = 2, MODE_CLIMATE = 3;
+        const DEFAULT_CAM_DIST = 3.4, MIN_CAM_DIST = 2.0, MAX_CAM_DIST = 10.0;
+
+        const SEASONS = [
+          { name: '春分', value: 0.0 },
+          { name: '夏至', value: 0.25 },
+          { name: '秋分', value: 0.5 },
+          { name: '冬至', value: 0.75 },
+        ];
+        let currentSeason = 0;
+
+        /* ===================== 行星参数 ===================== */
+        function mulberry32(a) {
+          return function () {
+            a |= 0; a = a + 0x6D2B79F5 | 0;
+            let t = Math.imul(a ^ a >>> 15, 1 | a);
+            t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+          };
+        }
+        function generatePlanetParams(seed) {
+          const rng = mulberry32(seed);
+          const tiltAbs = 18.0 + rng() * 14.0;
+          const tiltSign = rng() < 0.5 ? 1 : -1;
+          const tilt = tiltAbs * tiltSign;
+          const dayHours = 18.0 + rng() * 12.0;
+          const yearDays = 320 + rng() * 160;
+          const minTemp = -100 + rng() * 20;
+          const maxTemp = 26 + rng() * 10;
+          const oceanRatio = 0.65 + rng() * 0.20;
+          return {
+            tilt, dayHours, yearDays, minTemp, maxTemp, oceanRatio,
+            tropic: tiltAbs,
+            polarCircle: 90.0 - tiltAbs
+          };
+        }
+        let PLANET = null;
+
+        function updatePlanetInfo() {
+          document.getElementById('infoTilt').textContent = PLANET.tilt.toFixed(1) + '°';
+          document.getElementById('infoDay').textContent = PLANET.dayHours.toFixed(1) + ' 小时';
+          document.getElementById('infoYear').textContent = Math.round(PLANET.yearDays) + ' 天';
+          const oceanPct = Math.round(PLANET.oceanRatio * 100);
+          document.getElementById('infoLandSea').textContent = oceanPct + ' : ' + (100 - oceanPct);
+          document.getElementById('infoMinTemp').textContent = PLANET.minTemp.toFixed(0) + '°C';
+          document.getElementById('infoMaxTemp').textContent = PLANET.maxTemp.toFixed(0) + '°C';
+          document.getElementById('infoTropic').textContent = '±' + PLANET.tropic.toFixed(1) + '°';
+          document.getElementById('infoPolar').textContent = '±' + PLANET.polarCircle.toFixed(1) + '°';
+          document.getElementById('infoSeason').textContent = SEASONS[currentSeason].name;
+        }
+
+        /* ===================== 势场 + 噪声 ===================== */
+        const GAUSSIANS = [
+          [0.62, 0.55, 0.55, 0.42, 1.30],
+          [-0.55, 0.65, 0.45, 0.38, 1.10],
+          [0.45, 0.35, 0.82, 0.38, 1.05],
+          [0.10, 0.72, -0.65, 0.36, 0.85],
+          [0.20, 0.88, 0.10, 0.32, 0.55],
+          [-0.30, -0.42, 0.82, 0.30, 0.55],
+          [0.92, 0.25, -0.30, 0.22, 0.65],
+          [0.7432, 0.6561, 0.1310, 0.28, -0.85],
+        ];
+        const NORM_GAUSS = GAUSSIANS.map(g => {
+          const L = Math.hypot(g[0], g[1], g[2]);
+          return [g[0] / L, g[1] / L, g[2] / L, g[3], g[4]];
+        });
+        function landPotentialJS(x, y, z) {
+          let s = 0;
+          for (let k = 0; k < NORM_GAUSS.length; k++) {
+            const g = NORM_GAUSS[k];
+            const dx = x - g[0], dy = y - g[1], dz = z - g[2];
+            s += g[4] * Math.exp(-(dx * dx + dy * dy + dz * dz) / (g[3] * g[3]));
+          }
+          return s;
+        }
+        function hash3(x, y, z) {
+          let px = x * 0.3183099 + 0.1;
+          let py = y * 0.3183099 + 0.2;
+          let pz = z * 0.3183099 + 0.3;
+          px -= Math.floor(px); py -= Math.floor(py); pz -= Math.floor(pz);
+          px *= 17; py *= 17; pz *= 17;
+          const v = px * py * pz * (px + py + pz);
+          return v - Math.floor(v);
+        }
+        function smooth(t) { return t * t * (3 - 2 * t); }
+        function smoothstep(a, b, t) {
+          t = Math.max(0, Math.min(1, (t - a) / (b - a)));
+          return t * t * (3 - 2 * t);
+        }
+        function noise3JS(x, y, z) {
+          const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+          const u = smooth(x - xi), v = smooth(y - yi), w = smooth(z - zi);
+          const a = hash3(xi, yi, zi);
+          const b = hash3(xi + 1, yi, zi);
+          const c = hash3(xi, yi + 1, zi);
+          const d = hash3(xi + 1, yi + 1, zi);
+          const e = hash3(xi, yi, zi + 1);
+          const f = hash3(xi + 1, yi, zi + 1);
+          const g = hash3(xi, yi + 1, zi + 1);
+          const h = hash3(xi + 1, yi + 1, zi + 1);
+          const ab = a + (b - a) * u;
+          const cd = c + (d - c) * u;
+          const ef = e + (f - e) * u;
+          const gh = g + (h - g) * u;
+          const abcd = ab + (cd - ab) * v;
+          const efgh = ef + (gh - ef) * v;
+          return abcd + (efgh - abcd) * w;
+        }
+        function fbm3(x, y, z, oct) {
+          let sum = 0, amp = 1, norm = 0;
+          for (let i = 0; i < oct; i++) {
+            sum += amp * noise3JS(x, y, z);
+            norm += amp; amp *= 0.5;
+            x *= 2; y *= 2; z *= 2;
+          }
+          return sum / norm;
+        }
+        function ridgedFbm3(x, y, z, oct) {
+          let sum = 0, amp = 1, norm = 0;
+          for (let i = 0; i < oct; i++) {
+            let n = noise3JS(x, y, z);
+            n = 1.0 - Math.abs(n * 2.0 - 1.0);
+            sum += amp * n; norm += amp; amp *= 0.5;
+            x *= 2; y *= 2; z *= 2;
+          }
+          return sum / norm;
+        }
+        function plateTectonicsJS(px, py, pz, seed) {
+          let mountain = 0;
+          for (let i = 0; i < 5; i++) {
+            const a = seed * 0.37 + i * 1.257;
+            const b = seed * 0.53 + i * 2.103;
+            let ax = Math.sin(a) * Math.cos(b);
+            let ay = Math.cos(a);
+            let az = Math.sin(a) * Math.sin(b);
+            const aL = Math.hypot(ax, ay, az) || 1;
+            ax /= aL; ay /= aL; az /= aL;
+            const d = Math.abs(px * ax + py * ay + pz * az);
+            const width = 0.06 + i * 0.012;
+            const h = Math.exp(-Math.pow(d / width, 2));
+            let t1x = -az, t1y = 0, t1z = ax;
+            const t1L = Math.hypot(t1x, t1y, t1z) || 1;
+            t1x /= t1L; t1y /= t1L; t1z /= t1L;
+            const t2x = ay * t1z - az * t1y;
+            const t2y = az * t1x - ax * t1z;
+            const t2z = ax * t1y - ay * t1x;
+            const dot2 = px * t2x + py * t2y + pz * t2z;
+            const dot1 = px * t1x + py * t1y + pz * t1z;
+            const along = Math.atan2(dot2, dot1);
+            const varFactor = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(along * 5.0 + seed * i));
+            mountain += h * varFactor;
+          }
+          return mountain;
+        }
+        function computeLandMaskJS(px, py, pz, seed) {
+          const S = ((seed % 1000) + 1000) % 1000;
+          px += S * 0.0013;
+          py += ((S * 1.7) % 1.0) * 1.3;
+          pz += ((S * 2.3) % 1.0) * 1.7;
+          const w1x = fbm3(px * 0.35 + 11.0, py * 0.35, pz * 0.35, 3) - 0.5;
+          const w1y = fbm3(px * 0.35, py * 0.35 + 22.0, pz * 0.35, 3) - 0.5;
+          const w1z = fbm3(px * 0.35, py * 0.35, pz * 0.35 + 33.0, 3) - 0.5;
+          const q1x = px + w1x * 1.4, q1y = py + w1y * 1.4, q1z = pz + w1z * 1.4;
+          const lp = landPotentialJS(q1x, q1y, q1z);
+          const w2x = fbm3(q1x * 1.5 + 51.0, q1y * 1.5, q1z * 1.5, 3) - 0.5;
+          const w2y = fbm3(q1x * 1.5, q1y * 1.5 + 62.0, q1z * 1.5, 3) - 0.5;
+          const w2z = fbm3(q1x * 1.5, q1y * 1.5, q1z * 1.5 + 73.0, 3) - 0.5;
+          const q2x = q1x + w2x * 0.55, q2y = q1y + w2y * 0.55, q2z = q1z + w2z * 0.55;
+          const w3x = fbm3(q2x * 5.0 + 81.0, q2y * 5.0, q2z * 5.0, 2) - 0.5;
+          const w3y = fbm3(q2x * 5.0, q2y * 5.0 + 92.0, q2z * 5.0, 2) - 0.5;
+          const w3z = fbm3(q2x * 5.0, q2y * 5.0, q2z * 5.0 + 103.0, 2) - 0.5;
+          const q3x = q2x + w3x * 0.22, q3y = q2y + w3y * 0.22, q3z = q2z + w3z * 0.22;
+          const n1 = fbm3(q3x * 2.2, q3y * 2.2, q3z * 2.2, 5) - 0.5;
+          const n2 = fbm3(q3x * 6.0, q3y * 6.0, q3z * 6.0, 4) - 0.5;
+          const n3 = fbm3(q3x * 15.0, q3y * 15.0, q3z * 15.0, 3) - 0.5;
+          const n4 = fbm3(q3x * 35.0, q3y * 35.0, q3z * 35.0, 2) - 0.5;
+          const coast = n1 * 0.85 + n2 * 0.45 + n3 * 0.22 + n4 * 0.10;
+          const absLp = Math.abs(lp);
+          const edgeFactor = smoothstep(0.0, 0.5, 1.0 - absLp * 2.5);
+          const coastAmp = 0.35 + edgeFactor * 0.65;
+          const plate = plateTectonicsJS(q3x, q3y, q3z, seed * 0.01);
+          return lp + coast * coastAmp + plate * 0.18;
+        }
+
+        let CURRENT_SEED = Math.floor(Math.random() * 1000000);
+        let SEA_LEVEL = 0;
+
+        function nextFrame() {
+          return new Promise(resolve => requestAnimationFrame(() => resolve()));
+        }
+
+        async function recomputeSeaLevel(onProgress) {
+          const N = 24000;
+          const values = new Float32Array(N);
+          const golden = Math.PI * (3 - Math.sqrt(5));
+          const CHUNK = 2000;
+          for (let start = 0; start < N; start += CHUNK) {
+            const end = Math.min(N, start + CHUNK);
+            for (let i = start; i < end; i++) {
+              const y = 1 - (i / (N - 1)) * 2;
+              const r = Math.sqrt(Math.max(0, 1 - y * y));
+              const theta = golden * i;
+              const px = Math.cos(theta) * r, pz = Math.sin(theta) * r;
+              values[i] = computeLandMaskJS(px, y, pz, CURRENT_SEED);
+            }
+            if (onProgress) onProgress(end / N);
+            await nextFrame();
+          }
+          values.sort();
+          SEA_LEVEL = values[Math.floor(N * PLANET.oceanRatio)];
+        }
+
+        function computeElevationJS(px, py, pz, seed) {
+          const mask = computeLandMaskJS(px, py, pz, seed);
+          const base = mask - SEA_LEVEL;
+          if (base < 0.0) {
+            const n = fbm3(px * 2.2, py * 2.2, pz * 2.2, 4);
+            return base + (n - 0.5) * 0.30;
+          }
+          const landMask = smoothstep(0.0, 0.12, base);
+          const wx = fbm3(px * 0.7 + 11.0, py * 0.7, pz * 0.7, 2) - 0.5;
+          const wy = fbm3(px * 0.7, py * 0.7 + 22.0, pz * 0.7, 2) - 0.5;
+          const wz = fbm3(px * 0.7, py * 0.7, pz * 0.7 + 33.0, 2) - 0.5;
+          const qx = px + wx * 0.55, qy = py + wy * 0.55, qz = pz + wz * 0.55;
+          const r = ridgedFbm3(qx * 1.7, qy * 1.7, qz * 1.7, 5);
+          const ridge = 0.25 + r * 0.85;
+          const bRaw = fbm3(px * 1.1 + 5.0, py * 1.1, pz * 1.1, 3);
+          const basin = smoothstep(0.55, 0.90, bRaw);
+          return base * 0.28 + (ridge - 0.55) * 2.0 * landMask - basin * 0.38 * landMask;
+        }
+
+        /* ===================== 海岸距离网格 ===================== */
+        let coastGridCache = null;
+
+        async function computeCoastGrid(onProgress) {
+          const W = COAST_GRID_W, H = COAST_GRID_H;
+          const elevGrid = new Float32Array(W * H);
+
+          // ---- 段 1：高程 0 → 0.5 ----
+          for (let y = 0; y < H; y++) {
+            const v = (y + 0.5) / H;
+            const sinLat = 1 - 2 * v;
+            const cy = sinLat;
+            const cxr = Math.sqrt(Math.max(0, 1 - sinLat * sinLat));
+            for (let x = 0; x < W; x++) {
+              const lonR = (-180 + (x + 0.5) / W * 360) * Math.PI / 180;
+              const px = cxr * Math.cos(lonR), pz = cxr * Math.sin(lonR);
+              elevGrid[y * W + x] = computeElevationJS(px, cy, pz, CURRENT_SEED);
+            }
+            if (y % 16 === 0) {
+              onProgress(y / H * 0.5);
+              await nextFrame();
+            }
+          }
+
+          // ---- 段 2：海岸距离 0.5 → 1.0 ----
+          const coastDist = new Float32Array(W * H);
+          for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+              const idx = y * W + x;
+              if (elevGrid[idx] < 0) { coastDist[idx] = 0; continue; }
+              let minDist = COAST_MAX_SEARCH;
+              for (let d = 0; d < 16; d++) {
+                const ang = d * Math.PI / 8;
+                const dx = Math.cos(ang), dy = Math.sin(ang);
+                for (let step = 1; step <= COAST_MAX_SEARCH; step++) {
+                  const nx = x + Math.round(dx * step);
+                  const ny = y + Math.round(dy * step);
+                  if (nx < 0 || nx >= W || ny < 0 || ny >= H) break;
+                  if (elevGrid[ny * W + nx] < 0) {
+                    if (step < minDist) minDist = step;
+                    break;
+                  }
+                }
+              }
+              coastDist[idx] = minDist;
+            }
+            if (y % 16 === 0) {
+              onProgress(0.5 + y / H * 0.5);
+              await nextFrame();
+            }
+          }
+
+          coastGridCache = { data: coastDist, W, H };
+        }
+
+        function getCoastDist(px, py, pz) {
+          if (!coastGridCache) return 0;
+          const { data, W, H } = coastGridCache;
+          const lon = Math.atan2(pz, px);
+          const u = (lon + Math.PI) / (2 * Math.PI);
+          const v = (1 - py) * 0.5;
+          let x = Math.floor(u * W);
+          let y = Math.floor(v * H);
+          if (x < 0) x = 0; else if (x >= W) x = W - 1;
+          if (y < 0) y = 0; else if (y >= H) y = H - 1;
+          return data[y * W + x];
+        }
+
+        /* ===================== 洋流异常 ===================== */
+        function oceanAnomalyJS(px, py, pz, lat) {
+          const w1 = fbm3(px * 3.5, py * 3.5, pz * 3.5, 3) - 0.5;
+          const w2 = fbm3(px * 8.0, py * 8.0, pz * 8.0, 2) - 0.5;
+          const wL = Math.abs(lat + w1 * 30.0 + w2 * 15.0);
+          const eqCool = Math.exp(-Math.pow(wL / 12.0, 2));
+          const tradeCool = Math.exp(-Math.pow((wL - 18.0) / 12.0, 2));
+          const westWarm = Math.exp(-Math.pow((wL - 42.0) / 15.0, 2));
+          const subpWarm = Math.exp(-Math.pow((wL - 58.0) / 12.0, 2));
+          const polarCool = Math.exp(-Math.pow((wL - 80.0) / 15.0, 2));
+          let bias = -0.45 * eqCool - 0.30 * tradeCool
+            + 1.00 * westWarm + 0.40 * subpWarm - 0.80 * polarCool;
+          const lonRad = Math.atan2(pz, px);
+          const hemi = lat >= 0 ? 1 : -1;
+          const coastalBias = Math.cos(lonRad - hemi * 1.2) * 0.35 * hemi;
+          const midLatWeight = Math.exp(-Math.pow((wL - 42.0) / 22.0, 2));
+          bias += coastalBias * midLatWeight;
+          const eastCooling = Math.cos(lonRad + hemi * 1.2) * -0.25;
+          const subtropWeight = Math.exp(-Math.pow((wL - 25.0) / 10.0, 2));
+          bias += eastCooling * subtropWeight;
+          const n1 = fbm3(px * 4.5, py * 4.5, pz * 4.5, 3) - 0.5;
+          const n2 = fbm3(px * 12.0, py * 12.0, pz * 12.0, 3) - 0.5;
+          return bias + n1 * 1.2 + n2 * 0.6;
+        }
+
+        /* ===================== 温度 / 湿度 ===================== */
+        function computeTemperatureJS(px, py, pz, elev, lat, seasonPhase) {
+          const latAbs = Math.abs(lat);
+          const latFactor = Math.pow(latAbs / 90.0, 2.0);
+          let T = PLANET.maxTemp - (PLANET.maxTemp - PLANET.minTemp) * latFactor;
+
+          const seasonal = Math.sin(seasonPhase * 2 * Math.PI);
+          const hemi = lat >= 0 ? 1 : -1;
+          const seasonalBase = seasonal * hemi * (latAbs / 90.0) * PLANET.tilt;
+
+          const oceanAnom = oceanAnomalyJS(px, py, pz, lat);
+
+          if (elev > 0.0) {
+            const cd = getCoastDist(px, py, pz);
+            const cont = Math.max(0, Math.min(1, cd / 25.0));
+            const landAmp = 1.0 + cont * 1.2;
+            T += seasonalBase * landAmp;
+            T += 2.0;
+            T -= elev * 12.0;
+            const coastal = Math.exp(-cd * 0.15);
+            T += (oceanAnom - 0.7) * 1.5 * coastal * 0.5;
+          } else {
+            T += seasonalBase * 0.6;
+            const clamped = Math.max(-1.5, Math.min(1.5, oceanAnom));
+            T += clamped * 1.5 - 1.0;
+          }
+
+          const dDanhai = Math.sqrt(
+            Math.pow(px - 0.7432, 2) + Math.pow(py - 0.6561, 2) + Math.pow(pz - 0.1310, 2)
+          );
+          if (dDanhai < 0.55) T += (1.0 - dDanhai / 0.55) * 6.0;
+
+          T += (fbm3(px * 8.0, py * 8.0, pz * 8.0, 3) - 0.5) * 3.0;
+          return T;
+        }
+
+        function computeHumidityJS(px, py, pz, elev, lat, seasonPhase) {
+          const seasonal = Math.sin(seasonPhase * 2 * Math.PI);
+          const shiftedLat = lat - seasonal * PLANET.tilt * 1.2;
+          const w1 = fbm3(px * 3.5, py * 3.5, pz * 3.5, 3) - 0.5;
+          const w2 = fbm3(px * 8.0, py * 8.0, pz * 8.0, 2) - 0.5;
+          const L = Math.abs(shiftedLat + w1 * 30.0 + w2 * 15.0);
+          const itcz = Math.exp(-Math.pow(L / 10.0, 2));
+          const subtrop = Math.exp(-Math.pow((L - 28.0) / 8.0, 2));
+          const westerly = Math.exp(-Math.pow((L - 47.0) / 12.0, 2));
+          const polar = Math.exp(-Math.pow((L - 78.0) / 15.0, 2));
+          let humidity = 0.55 + itcz * 0.40 - subtrop * 0.38 + westerly * 0.18 - polar * 0.22;
+
+          const cd = getCoastDist(px, py, pz);
+
+          if (elev > 0.0) {
+            const cont = Math.min(1.0, cd / 25.0);
+            humidity *= (1.0 - cont * 0.55);
+          }
+          const sst = oceanAnomalyJS(px, py, pz, lat);
+          humidity += sst * (elev < 0.0 ? 0.20 : 0.12);
+
+          if (elev > 0.0) {
+            const lonRad = Math.atan2(pz, px);
+            const hemi = lat >= 0 ? 1 : -1;
+            const hemiSummer = seasonal * hemi;
+            const monsoonLon = Math.cos(lonRad - hemi * 1.8);
+            const monsoonLonMask = smoothstep(0.0, 0.85, monsoonLon);
+            const monsoonLatMask = Math.exp(-Math.pow((lat - hemi * 18.0) / 14.0, 2));
+            const coastFade = Math.exp(-cd * 0.10);
+            const monsoon = monsoonLonMask * monsoonLatMask * coastFade;
+            const monsoonFactor = 0.10 + hemiSummer * 0.40;
+            humidity += monsoon * monsoonFactor;
+          }
+
+          if (elev > 0.0) {
+            if (elev < 0.25) humidity += 0.08;
+            else if (elev > 0.7) humidity -= 0.15;
+          }
+
+          const n1 = fbm3(px * 2.2, py * 2.2, pz * 2.2, 5) - 0.5;
+          const n2 = fbm3(px * 6.5, py * 6.5, pz * 6.5, 4) - 0.5;
+          const n3 = fbm3(px * 18.0, py * 18.0, pz * 18.0, 3) - 0.5;
+          humidity += n1 * 0.45 + n2 * 0.24 + n3 * 0.10;
+
+          return Math.max(0, Math.min(1, humidity));
+        }
+
+        /* ===================== 气候分类（16 类） ===================== */
+        function classifyClimate(lat, elev, Ts, Hs) {
+          if (elev > 0.75 && Math.abs(lat) < 55) return 15.0;   // 高原山地
+          if (elev > 1.10) return 0.0;                          // 冰原
+
+          const hemi = lat >= 0 ? 1 : -1;
+          const nSummer = PLANET.tilt >= 0 ? 1 : 3;
+          const nWinter = PLANET.tilt >= 0 ? 3 : 1;
+          const Tsummer = hemi > 0 ? Ts[nSummer] : Ts[nWinter];
+          const Twinter = hemi > 0 ? Ts[nWinter] : Ts[nSummer];
+          const Hsummer = hemi > 0 ? Hs[nSummer] : Hs[nWinter];
+          const Hwinter = hemi > 0 ? Hs[nWinter] : Hs[nSummer];
+          const Havg = (Hs[0] + Hs[1] + Hs[2] + Hs[3]) * 0.25;
+          const seasonality = Hsummer - Hwinter;
+
+          if (Tsummer < 0.0) return 0.0;                        // 冰原
+          if (Tsummer < 10.0) return 1.0;                       // 苔原
+          if (Twinter < -15.0) return Havg > 0.50 ? 2.0 : 3.0;  // 亚寒带
+
+          if (Twinter < 0.0 && seasonality > 0.15) return 7.0;  // 温带季风
+
+          if (Twinter > 18.0) {
+            if (Havg > 0.65 && Math.abs(seasonality) < 0.15) return 11.0;  // 热带雨林
+            if (Havg > 0.50) return 12.0;                                   // 热带季风
+            if (Havg > 0.25) return 13.0;                                   // 热带草原
+            return 14.0;                                                     // 热带沙漠
+          }
+          if (Twinter > 0.0) {
+            if (Havg < 0.25) return 10.0;                                  // 亚热带沙漠
+            if (seasonality < -0.12) return 9.0;                           // 地中海
+            if (seasonality > 0.12) return 8.0;                            // 亚热带季风
+            if (Havg > 0.55) return 4.0;                                   // 温带海洋性
+            return 5.0;                                                     // 温带大陆性
+          }
+          if (Havg < 0.25) return 6.0;                                     // 温带草原
+          if (seasonality > 0.12) return 7.0;
+          if (Havg > 0.55) return 4.0;
+          if (Havg > 0.35) return 5.0;
+          return 6.0;
+        }
+
+        /* ===================== Icosahedron 球体 ===================== */
+        function createIcosahedron(radius, subdiv) {
+          const t = (1 + Math.sqrt(5)) / 2;
+          const verts = [
+            [-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0],
+            [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t],
+            [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1],
+          ].map(v => {
+            const L = Math.hypot(v[0], v[1], v[2]);
+            return [v[0] / L * radius, v[1] / L * radius, v[2] / L * radius];
+          });
+
+          let faces = [
+            [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+            [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+            [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+            [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1],
+          ];
+
+          for (let s = 0; s < subdiv; s++) {
+            const cache = new Map();
+            const next = [];
+            const mid = (a, b) => {
+              const lo = a < b ? a : b;
+              const hi = a < b ? b : a;
+              const key = lo * 65536 + hi;
+              const hit = cache.get(key);
+              if (hit !== undefined) return hit;
+              const va = verts[a], vb = verts[b];
+              let mx = (va[0] + vb[0]) * 0.5;
+              let my = (va[1] + vb[1]) * 0.5;
+              let mz = (va[2] + vb[2]) * 0.5;
+              const L = Math.hypot(mx, my, mz) || 1;
+              mx = mx / L * radius; my = my / L * radius; mz = mz / L * radius;
+              const idx = verts.length;
+              verts.push([mx, my, mz]);
+              cache.set(key, idx);
+              return idx;
+            };
+            for (let i = 0; i < faces.length; i++) {
+              const a = faces[i][0], b = faces[i][1], c = faces[i][2];
+              const ab = mid(a, b), bc = mid(b, c), ca = mid(c, a);
+              next.push([a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]);
+            }
+            faces = next;
+          }
+
+          const positions = new Float32Array(verts.length * 3);
+          for (let i = 0; i < verts.length; i++) {
+            positions[i * 3] = verts[i][0];
+            positions[i * 3 + 1] = verts[i][1];
+            positions[i * 3 + 2] = verts[i][2];
+          }
+
+          const vertCount = verts.length;
+          let indices;
+          if (vertCount <= 65536) {
+            indices = new Uint16Array(faces.length * 3);
+          } else {
+            indices = new Uint32Array(faces.length * 3);
+          }
+          for (let i = 0; i < faces.length; i++) {
+            indices[i * 3] = faces[i][0];
+            indices[i * 3 + 1] = faces[i][1];
+            indices[i * 3 + 2] = faces[i][2];
+          }
+
+          return { positions, indices, vertCount, faceCount: faces.length };
+        }
+
+        /* ===================== 顶点 + 纹理数据生成 ===================== */
+        async function generateVertexData(sphere, onProgress) {
+          const n = sphere.vertCount;
+          const pos = sphere.positions;
+
+          const aTemp = new Float32Array(n * 4);
+          const aHumid = new Float32Array(n * 4);
+          const aEnv = new Float32Array(n * 4);
+
+          /* ---- Step 1: 顶点高程 ---- */
+          const elevArr = new Float32Array(n);
+          for (let start = 0; start < n; start += CHUNK_VERTS) {
+            const end = Math.min(n, start + CHUNK_VERTS);
+            for (let i = start; i < end; i++) {
+              const px = pos[i * 3], py = pos[i * 3 + 1], pz = pos[i * 3 + 2];
+              elevArr[i] = computeElevationJS(px, py, pz, CURRENT_SEED);
+            }
+            onProgress((start / n) * 0.15, '计算顶点高程…');
+            await nextFrame();
+          }
+
+          /* ---- Step 2: 顶点四季温湿度 ---- */
+          const seasons = [0.0, 0.25, 0.5, 0.75];
+          const TsAll = [new Float32Array(n), new Float32Array(n), new Float32Array(n), new Float32Array(n)];
+          const HsAll = [new Float32Array(n), new Float32Array(n), new Float32Array(n), new Float32Array(n)];
+
+          for (let s = 0; s < 4; s++) {
+            const Ts = TsAll[s], Hs = HsAll[s];
+            for (let start = 0; start < n; start += CHUNK_VERTS) {
+              const end = Math.min(n, start + CHUNK_VERTS);
+              for (let i = start; i < end; i++) {
+                const px = pos[i * 3], py = pos[i * 3 + 1], pz = pos[i * 3 + 2];
+                const lat = Math.asin(Math.max(-1, Math.min(1, py))) * 180 / Math.PI;
+                const elev = elevArr[i];
+                Ts[i] = computeTemperatureJS(px, py, pz, elev, lat, seasons[s]);
+                Hs[i] = computeHumidityJS(px, py, pz, elev, lat, seasons[s]);
+              }
+              onProgress(0.15 + (s + start / n) / 4 * 0.45, '顶点' + SEASONS[s].name + '…');
+              await nextFrame();
+            }
+          }
+
+          /* ---- Step 3: 打包顶点属性 ---- */
+          for (let start = 0; start < n; start += CHUNK_VERTS) {
+            const end = Math.min(n, start + CHUNK_VERTS);
+            for (let i = start; i < end; i++) {
+              const px = pos[i * 3], py = pos[i * 3 + 1], pz = pos[i * 3 + 2];
+              const lat = Math.asin(Math.max(-1, Math.min(1, py))) * 180 / Math.PI;
+              const elev = elevArr[i];
+
+              const i4 = i * 4;
+              for (let s = 0; s < 4; s++) {
+                const t = TsAll[s][i];
+                const norm = Math.max(0, Math.min(1, (t - TEMP_NORM_MIN) / TEMP_NORM_RANGE));
+                aTemp[i4 + s] = norm;
+                aHumid[i4 + s] = HsAll[s][i];
+              }
+              const Ts = [TsAll[0][i], TsAll[1][i], TsAll[2][i], TsAll[3][i]];
+              const Hs = [HsAll[0][i], HsAll[1][i], HsAll[2][i], HsAll[3][i]];
+              const climate = classifyClimate(lat, elev, Ts, Hs);
+              aEnv[i4] = elev;
+              aEnv[i4 + 1] = climate;
+              aEnv[i4 + 2] = 0;
+              aEnv[i4 + 3] = 0;
+            }
+            onProgress(0.60 + (start / n) * 0.05, '打包顶点属性…');
+            await nextFrame();
+          }
+
+          /* ---- Step 4: 纹理数据（下载用） ---- */
+          const texElev = new Uint8Array(TEX_W * TEX_H * 4);
+          const texTemp = new Uint8Array(TEX_W * TEMP_ATLAS_H * 4);
+          const texHumid = new Uint8Array(TEX_W * TEMP_ATLAS_H * 4);
+          const texClimate = new Uint8Array(TEX_W * TEX_H * 4);
+
+          const texElevGrid = new Float32Array(TEX_W * TEX_H);
+          for (let y = 0; y < TEX_H; y++) {
+            const v = (y + 0.5) / TEX_H;
+            const sinLat = 1 - 2 * v;
+            const cy = sinLat;
+            const cxr = Math.sqrt(Math.max(0, 1 - sinLat * sinLat));
+            for (let x = 0; x < TEX_W; x++) {
+              const lonR = (-180 + (x + 0.5) / TEX_W * 360) * Math.PI / 180;
+              const px = cxr * Math.cos(lonR), pz = cxr * Math.sin(lonR);
+              const elev = computeElevationJS(px, cy, pz, CURRENT_SEED);
+              texElevGrid[y * TEX_W + x] = elev;
+              const norm = Math.max(0, Math.min(1, (elev + 1) / 3));
+              const o = (y * TEX_W + x) * 4;
+              texElev[o] = Math.round(norm * 255);
+              texElev[o + 3] = 255;
+            }
+          }
+          onProgress(0.65, '纹理高程…');
+          await nextFrame();
+
+          for (let s = 0; s < 4; s++) {
+            const sOff = s * TEX_H;
+            for (let y = 0; y < TEX_H; y++) {
+              const v = (y + 0.5) / TEX_H;
+              const sinLat = 1 - 2 * v;
+              const lat = Math.asin(Math.max(-1, Math.min(1, sinLat))) * 180 / Math.PI;
+              const cy = sinLat;
+              const cxr = Math.sqrt(Math.max(0, 1 - sinLat * sinLat));
+              for (let x = 0; x < TEX_W; x++) {
+                const lonR = (-180 + (x + 0.5) / TEX_W * 360) * Math.PI / 180;
+                const px = cxr * Math.cos(lonR), pz = cxr * Math.sin(lonR);
+                const elev = texElevGrid[y * TEX_W + x];
+                const T = computeTemperatureJS(px, cy, pz, elev, lat, seasons[s]);
+                const H = computeHumidityJS(px, cy, pz, elev, lat, seasons[s]);
+                const tNorm = Math.max(0, Math.min(1, (T - TEMP_NORM_MIN) / TEMP_NORM_RANGE));
+                const o = ((y + sOff) * TEX_W + x) * 4;
+                texTemp[o] = Math.round(tNorm * 255);
+                texTemp[o + 3] = 255;
+                texHumid[o] = Math.round(H * 255);
+                texHumid[o + 3] = 255;
+              }
+            }
+            onProgress(0.65 + (s + 1) / 4 * 0.30, '纹理' + SEASONS[s].name + '…');
+            await nextFrame();
+          }
+
+          for (let y = 0; y < TEX_H; y++) {
+            const v = (y + 0.5) / TEX_H;
+            const sinLat = 1 - 2 * v;
+            const lat = Math.asin(Math.max(-1, Math.min(1, sinLat))) * 180 / Math.PI;
+            const cy = sinLat;
+            const cxr = Math.sqrt(Math.max(0, 1 - sinLat * sinLat));
+            for (let x = 0; x < TEX_W; x++) {
+              const lonR = (-180 + (x + 0.5) / TEX_W * 360) * Math.PI / 180;
+              const px = cxr * Math.cos(lonR), pz = cxr * Math.sin(lonR);
+              const elev = texElevGrid[y * TEX_W + x];
+              const Ts = [], Hs = [];
+              for (let s = 0; s < 4; s++) {
+                Ts.push(computeTemperatureJS(px, cy, pz, elev, lat, seasons[s]));
+                Hs.push(computeHumidityJS(px, cy, pz, elev, lat, seasons[s]));
+              }
+              const climate = classifyClimate(lat, elev, Ts, Hs);
+              const o = (y * TEX_W + x) * 4;
+              texClimate[o] = Math.round(climate);
+              texClimate[o + 3] = 255;
+            }
+          }
+          onProgress(0.98, '纹理气候…');
+          await nextFrame();
+
+          onProgress(1.0, '完成');
+          return { aTemp, aHumid, aEnv, texElev, texTemp, texHumid, texClimate };
+        }
+
+        /* ===================== 主渲染着色器 ===================== */
+        const vsSource = `
+attribute vec3 aPos;
+attribute vec4 aTemp;
+attribute vec4 aHumid;
+attribute vec4 aEnv;
+
+uniform mat4 uMVP;
+uniform mat4 uModel;
+
+varying vec3 vLocalPos;
+varying vec3 vWorldPos;
+varying vec4 vTemp;
+varying vec4 vHumid;
+varying vec4 vEnv;
+
+void main() {
+  vLocalPos = aPos;
+  vWorldPos = (uModel * vec4(aPos, 1.0)).xyz;
+  vTemp = aTemp;
+  vHumid = aHumid;
+  vEnv = aEnv;
+  gl_Position = uMVP * vec4(aPos, 1.0);
+}
+`;
+
+        const fsSource = `
+precision highp float;
+varying vec3 vLocalPos;
+varying vec3 vWorldPos;
+varying vec4 vTemp;
+varying vec4 vHumid;
+varying vec4 vEnv;
+
+uniform float uColorMode;
+uniform float uSeason;
+uniform float uTilt;
+
+const float TEMP_MIN = -125.0;
+const float TEMP_RANGE = 175.0;
+
+vec3 elevationColor(float elev) {
+  if (elev < -0.55) return vec3(  6.0,  22.0,  40.0) / 255.0;
+  if (elev < -0.30) return vec3( 14.0,  42.0,  66.0) / 255.0;
+  if (elev < -0.14) return vec3( 22.0,  58.0,  82.0) / 255.0;
+  if (elev <  0.00) return vec3( 32.0,  78.0,  98.0) / 255.0;
+  if (elev < 0.05) return vec3(200.0, 198.0, 160.0) / 255.0;
+  if (elev < 0.12) return vec3(180.0, 190.0, 120.0) / 255.0;
+  if (elev < 0.22) return vec3(155.0, 178.0, 100.0) / 255.0;
+  if (elev < 0.34) return vec3(130.0, 165.0,  85.0) / 255.0;
+  if (elev < 0.48) return vec3(105.0, 148.0,  72.0) / 255.0;
+  if (elev < 0.62) return vec3( 88.0, 130.0,  62.0) / 255.0;
+  if (elev < 0.78) return vec3( 78.0, 108.0,  58.0) / 255.0;
+  if (elev < 0.95) return vec3( 90.0,  96.0,  62.0) / 255.0;
+  if (elev < 1.12) return vec3(124.0, 116.0,  98.0) / 255.0;
+  if (elev < 1.30) return vec3(108.0, 100.0,  88.0) / 255.0;
+  if (elev < 1.50) return vec3(150.0, 150.0, 150.0) / 255.0;
+  return vec3(225.0, 230.0, 235.0) / 255.0;
+}
+vec3 tempColor(float tempC) {
+  float t = clamp((tempC + 60.0) / 10.0, 0.0, 11.0);
+  int i = int(floor(t));
+  float f = t - float(i);
+  vec3 a, b;
+  if      (i == 0)  { a = vec3(0.08, 0.02, 0.18); b = vec3(0.18, 0.08, 0.42); }
+  else if (i == 1)  { a = vec3(0.18, 0.08, 0.42); b = vec3(0.18, 0.20, 0.62); }
+  else if (i == 2)  { a = vec3(0.18, 0.20, 0.62); b = vec3(0.15, 0.32, 0.75); }
+  else if (i == 3)  { a = vec3(0.15, 0.32, 0.75); b = vec3(0.28, 0.52, 0.88); }
+  else if (i == 4)  { a = vec3(0.28, 0.52, 0.88); b = vec3(0.48, 0.72, 0.94); }
+  else if (i == 5)  { a = vec3(0.48, 0.72, 0.94); b = vec3(0.75, 0.90, 0.96); }
+  else if (i == 6)  { a = vec3(0.75, 0.90, 0.96); b = vec3(0.94, 0.96, 0.78); }
+  else if (i == 7)  { a = vec3(0.94, 0.96, 0.78); b = vec3(0.98, 0.86, 0.42); }
+  else if (i == 8)  { a = vec3(0.98, 0.86, 0.42); b = vec3(0.96, 0.60, 0.22); }
+  else if (i == 9)  { a = vec3(0.96, 0.60, 0.22); b = vec3(0.85, 0.30, 0.15); }
+  else if (i == 10) { a = vec3(0.85, 0.30, 0.15); b = vec3(0.62, 0.08, 0.06); }
+  else              { a = vec3(0.62, 0.08, 0.06); b = vec3(0.62, 0.08, 0.06); }
+  return mix(a, b, f);
+}
+vec3 climateColor(float c) {
+  if (c <  0.5) return vec3(0.96, 0.96, 0.99);
+  if (c <  1.5) return vec3(0.62, 0.72, 0.68);
+  if (c <  2.5) return vec3(0.10, 0.42, 0.32);
+  if (c <  3.5) return vec3(0.40, 0.46, 0.42);
+  if (c <  4.5) return vec3(0.25, 0.72, 0.32);
+  if (c <  5.5) return vec3(0.55, 0.62, 0.22);
+  if (c <  6.5) return vec3(0.80, 0.72, 0.35);
+  if (c <  7.5) return vec3(0.35, 0.72, 0.30);
+  if (c <  8.5) return vec3(0.15, 0.78, 0.42);
+  if (c <  9.5) return vec3(0.92, 0.78, 0.20);
+  if (c < 10.5) return vec3(0.88, 0.52, 0.25);
+  if (c < 11.5) return vec3(0.04, 0.36, 0.08);
+  if (c < 12.5) return vec3(0.20, 0.62, 0.25);
+  if (c < 13.5) return vec3(0.68, 0.74, 0.22);
+  if (c < 14.5) return vec3(0.98, 0.78, 0.38);
+  return vec3(0.70, 0.64, 0.54);
+}
+float latLine(float lat, float target, float halfWidth) {
+  return 1.0 - smoothstep(halfWidth * 0.4, halfWidth, abs(lat - target));
+}
+float lonLine(float lon, float target, float halfWidthDeg, float cosLat) {
+  float d = abs(lon - target);
+  d = min(d, 360.0 - d);
+  float w = halfWidthDeg / max(0.15, cosLat);
+  return 1.0 - smoothstep(w * 0.4, w, d);
+}
+
+/* ★ 世界空间固定太阳方向（参考版本方案） */
+vec3 getSunDir() {
+  float sa = uSeason * 6.28318530;
+  float el = sin(sa) * uTilt * 0.01745329;
+  float az = 0.8;
+  return normalize(vec3(cos(el) * cos(az), sin(el), cos(el) * sin(az)));
+}
+
+void main() {
+  vec3 localP = normalize(vLocalPos);
+  vec3 worldP = normalize(vWorldPos);
+
+  float lat = asin(clamp(localP.y, -1.0, 1.0)) * 57.29577951;
+  float lon = atan(localP.z, localP.x) * 57.29577951;
+  float cosLat = max(0.12, abs(cos(lat * 0.01745329)));
+
+  float elev = vEnv.x;
+  float climate = vEnv.y;
+
+  float s = uSeason;
+  float tNorm;
+  if      (s < 0.25) tNorm = mix(vTemp.x, vTemp.y, s / 0.25);
+  else if (s < 0.50) tNorm = mix(vTemp.y, vTemp.z, (s - 0.25) / 0.25);
+  else if (s < 0.75) tNorm = mix(vTemp.z, vTemp.w, (s - 0.50) / 0.25);
+  else               tNorm = mix(vTemp.w, vTemp.x, (s - 0.75) / 0.25);
+
+  float hNorm;
+  if      (s < 0.25) hNorm = mix(vHumid.x, vHumid.y, s / 0.25);
+  else if (s < 0.50) hNorm = mix(vHumid.y, vHumid.z, (s - 0.25) / 0.25);
+  else if (s < 0.75) hNorm = mix(vHumid.z, vHumid.w, (s - 0.50) / 0.25);
+  else               hNorm = mix(vHumid.w, vHumid.x, (s - 0.75) / 0.25);
+
+  bool isOcean = elev < 0.0;
+  vec3 col;
+
+  if (uColorMode < 0.5) {
+    col = elevationColor(elev);
+    if (!isOcean && climate < 0.5) col = vec3(0.94, 0.96, 0.99);
+  } else if (uColorMode < 1.5) {
+    float tempC = tNorm * TEMP_RANGE + TEMP_MIN;
+    vec3 bg = tempColor(tempC);
+    if (!isOcean) bg = bg * 0.80 + vec3(0.05);
+    col = bg;
+  } else if (uColorMode < 2.5) {
+    vec3 humidBg;
+    if      (hNorm < 0.17) humidBg = vec3(0.42, 0.24, 0.10);
+    else if (hNorm < 0.33) humidBg = vec3(0.80, 0.62, 0.30);
+    else if (hNorm < 0.67) humidBg = vec3(0.65, 0.82, 0.48);
+    else                   humidBg = vec3(0.14, 0.55, 0.38);
+    if (isOcean) humidBg *= 0.55;
+    col = humidBg;
+  } else {
+    if (isOcean) {
+      float depth = clamp(-elev / 0.7, 0.0, 1.0);
+      col = mix(vec3(0.18, 0.30, 0.42), vec3(0.08, 0.15, 0.24), depth);
+    } else {
+      col = climateColor(climate);
+    }
+  }
+
+  /* ★ 世界空间法线 + 世界空间固定太阳 */
+  vec3 N = worldP;
+  vec3 sunDir = getSunDir();
+  vec3 moonDir = -sunDir;
+  float sunDot = dot(N, sunDir);
+  float dayFactor = smoothstep(-0.18, 0.28, sunDot);
+  float sun = max(0.0, sunDot);
+  float moon = max(0.0, dot(N, moonDir)) * 0.18;
+
+  float nightAmbient, dayAmbient;
+  if (uColorMode < 0.5) { nightAmbient = 0.20; dayAmbient = 0.55 + 0.10 * N.y; }
+  else if (uColorMode < 1.5) { nightAmbient = 0.38; dayAmbient = 0.65 + 0.12 * N.y; }
+  else { nightAmbient = 0.45; dayAmbient = 0.72 + 0.10 * N.y; }
+  float ambient = mix(nightAmbient, dayAmbient, dayFactor);
+  float lighting = ambient + sun * dayFactor * 0.75 + moon * (1.0 - dayFactor);
+  float rim = pow(1.0 - abs(dot(N, vec3(0.0, 0.0, 1.0))), 3.0) * 0.10;
+  lighting += rim * dayFactor;
+
+  vec3 dayTint = vec3(1.03, 1.00, 0.94);
+  vec3 nightTint = vec3(0.55, 0.65, 0.90);
+  vec3 lightTint = mix(nightTint, dayTint, dayFactor);
+  vec3 outColor = col * lighting * lightTint;
+
+  float gridDayFade = mix(0.55, 1.0, dayFactor);
+  vec3 gridColor = vec3(0.05, 0.05, 0.08);
+  float lonGridMask = 0.0;
+  for (int i = 0; i < 24; i++) {
+    float target = float(i) * 15.0 - 180.0;
+    lonGridMask = max(lonGridMask, lonLine(lon, target, 0.10, cosLat));
+  }
+  float latGridMask = 0.0;
+  float tiltAbs = abs(uTilt);
+  float tropicDeg = tiltAbs;
+  float polarDeg = 90.0 - tiltAbs;
+  for (int i = 0; i < 12; i++) {
+    float target = float(i) * 15.0 - 90.0;
+    if (abs(target) < 0.5) continue;
+    if (abs(abs(target) - tropicDeg) < 0.5) continue;
+    if (abs(abs(target) - polarDeg) < 0.5) continue;
+    latGridMask = max(latGridMask, latLine(lat, target, 0.10));
+  }
+  float gridMask = max(lonGridMask, latGridMask);
+  outColor = mix(outColor, gridColor, gridMask * 0.65 * gridDayFade);
+
+  float equator = latLine(lat, 0.0, 0.10);
+  outColor = mix(outColor, vec3(0.05, 0.05, 0.08), equator * 0.85 * gridDayFade);
+  float tropicN = latLine(lat, tropicDeg, 0.10);
+  float tropicS = latLine(lat, -tropicDeg, 0.10);
+  float dashFactor = step(0.5, fract((lon + 180.0) / 5.0));
+  float tropicDash = max(tropicN, tropicS) * dashFactor;
+  outColor = mix(outColor, vec3(0.05, 0.05, 0.08), tropicDash * 0.85 * gridDayFade);
+  float arcticN = latLine(lat, polarDeg, 0.10);
+  float arcticS = latLine(lat, -polarDeg, 0.10);
+  float arcticDash = max(arcticN, arcticS) * dashFactor;
+  outColor = mix(outColor, vec3(0.05, 0.05, 0.08), arcticDash * 0.85 * gridDayFade);
+
+  gl_FragColor = vec4(clamp(outColor, 0.0, 1.0), 1.0);
+}
+`;
+
+        /* ===================== WebGL 初始化 ===================== */
+        const canvas = document.getElementById('cv');
+        const errEl = document.getElementById('err');
+        const gl = canvas.getContext('webgl', { antialias: true })
+          || canvas.getContext('experimental-webgl', { antialias: true });
+        if (!gl) { errEl.textContent = '你的浏览器不支持 WebGL'; return; }
+
+        const extUint = gl.getExtension('OES_element_index_uint');
+
+        function compile(type, src) {
+          const s = gl.createShader(type);
+          gl.shaderSource(s, src);
+          gl.compileShader(s);
+          if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+            errEl.textContent = 'Shader 编译失败: ' + gl.getShaderInfoLog(s);
+            return null;
+          }
+          return s;
+        }
+        const program = gl.createProgram();
+        const vs = compile(gl.VERTEX_SHADER, vsSource);
+        const fs = compile(gl.FRAGMENT_SHADER, fsSource);
+        if (!vs || !fs) return;
+        gl.attachShader(program, vs);
+        gl.attachShader(program, fs);
+        gl.linkProgram(program);
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          errEl.textContent = 'Program 链接失败: ' + gl.getProgramInfoLog(program);
+          return;
+        }
+
+        const aPosLoc = gl.getAttribLocation(program, 'aPos');
+        const aTempLoc = gl.getAttribLocation(program, 'aTemp');
+        const aHumidLoc = gl.getAttribLocation(program, 'aHumid');
+        const aEnvLoc = gl.getAttribLocation(program, 'aEnv');
+        const uMVPLoc = gl.getUniformLocation(program, 'uMVP');
+        const uModelLoc = gl.getUniformLocation(program, 'uModel');
+        const uColorModeLoc = gl.getUniformLocation(program, 'uColorMode');
+        const uSeasonLoc = gl.getUniformLocation(program, 'uSeason');
+        const uTiltLoc = gl.getUniformLocation(program, 'uTilt');
+
+        const sphere = createIcosahedron(1.0, ICO_SUBDIV);
+        const use32 = sphere.vertCount > 65536;
+        if (use32 && !extUint) {
+          errEl.textContent = '需要 OES_element_index_uint 扩展，请降低 ICO_SUBDIV';
+          return;
+        }
+        const indexGLType = use32 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
+
+        const posBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, sphere.positions, gl.STATIC_DRAW);
+
+        const idxBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphere.indices, gl.STATIC_DRAW);
+
+        const tempBuf = gl.createBuffer();
+        const humidBuf = gl.createBuffer();
+        const envBuf = gl.createBuffer();
+
+        let lastResult = null;
+
+        function uploadVertexAttribs(data) {
+          gl.bindBuffer(gl.ARRAY_BUFFER, tempBuf);
+          gl.bufferData(gl.ARRAY_BUFFER, data.aTemp, gl.STATIC_DRAW);
+          gl.bindBuffer(gl.ARRAY_BUFFER, humidBuf);
+          gl.bufferData(gl.ARRAY_BUFFER, data.aHumid, gl.STATIC_DRAW);
+          gl.bindBuffer(gl.ARRAY_BUFFER, envBuf);
+          gl.bufferData(gl.ARRAY_BUFFER, data.aEnv, gl.STATIC_DRAW);
+        }
+
+        /* ---------- 矩阵工具 ---------- */
+        function mul(a, b) {
+          const o = new Float32Array(16);
+          for (let c = 0; c < 4; c++)
+            for (let r = 0; r < 4; r++) {
+              let s = 0;
+              for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+              o[c * 4 + r] = s;
+            }
+          return o;
+        }
+        function perspective(fovy, aspect, near, far) {
+          const f = 1 / Math.tan(fovy / 2);
+          const nf = 1 / (near - far);
+          const o = new Float32Array(16);
+          o[0] = f / aspect; o[5] = f;
+          o[10] = (far + near) * nf; o[11] = -1;
+          o[14] = 2 * far * near * nf;
+          return o;
+        }
+        function rotX(a) {
+          const c = Math.cos(a), s = Math.sin(a);
+          return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]);
+        }
+        function rotY(a) {
+          const c = Math.cos(a), s = Math.sin(a);
+          return new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]);
+        }
+        function rotZ(a) {
+          const c = Math.cos(a), s = Math.sin(a);
+          return new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+        }
+        function translation(x, y, z) {
+          return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]);
+        }
+        function orthonormalize(m) {
+          let x0 = m[0], x1 = m[1], x2 = m[2];
+          let y0 = m[4], y1 = m[5], y2 = m[6];
+          let len = Math.hypot(x0, x1, x2) || 1;
+          x0 /= len; x1 /= len; x2 /= len;
+          const yDotX = y0 * x0 + y1 * x1 + y2 * x2;
+          y0 -= yDotX * x0; y1 -= yDotX * x1; y2 -= yDotX * x2;
+          len = Math.hypot(y0, y1, y2) || 1;
+          y0 /= len; y1 /= len; y2 /= len;
+          const z0 = x1 * y2 - x2 * y1;
+          const z1 = x2 * y0 - x0 * y2;
+          const z2 = x0 * y1 - x1 * y0;
+          const o = new Float32Array(16);
+          o[0] = x0; o[1] = x1; o[2] = x2; o[3] = 0;
+          o[4] = y0; o[5] = y1; o[6] = y2; o[7] = 0;
+          o[8] = z0; o[9] = z1; o[10] = z2; o[11] = 0;
+          o[12] = 0; o[13] = 0; o[14] = 0; o[15] = 1;
+          return o;
+        }
+
+        /* ---------- 视角状态 ---------- */
+        let earthSpin = 0;
+        let cameraRotation = mul(mul(rotY(0.55), rotX(0.32)), rotZ(0.20));
+        const ROT_SPEED = 0.0055;
+        const AUTO_SPIN_SPEED = 2 * Math.PI / 75;
+        let autoSpin = true;
+        let orthoCounter = 0;
+        let camDist = DEFAULT_CAM_DIST;
+
+        function setDefaultView() {
+          earthSpin = 0;
+          const tiltRad = PLANET ? PLANET.tilt * Math.PI / 180 : 0.20;
+          cameraRotation = mul(mul(rotY(0.55), rotX(0.32)), rotZ(tiltRad));
+          camDist = DEFAULT_CAM_DIST;
+        }
+        function getModelMatrix() { return rotY(earthSpin); }
+        function applyDragRotation(dx, dy) {
+          const delta = mul(rotY(dx * ROT_SPEED), rotX(dy * ROT_SPEED));
+          cameraRotation = mul(delta, cameraRotation);
+          if (++orthoCounter > 200) {
+            cameraRotation = orthonormalize(cameraRotation);
+            orthoCounter = 0;
+          }
+        }
+        function applyAutoSpin(dt) { earthSpin += dt * AUTO_SPIN_SPEED; }
+
+        let colorMode = MODE_ELEV;
+        let needsRender = true;
+        function markDirty() { needsRender = true; }
+
+        function render() {
+          const dpr = window.devicePixelRatio || 1;
+          const cw = Math.floor(window.innerWidth * dpr);
+          const ch = Math.floor(window.innerHeight * dpr);
+          if (canvas.width !== cw || canvas.height !== ch) {
+            canvas.width = cw; canvas.height = ch;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+          }
+          gl.viewport(0, 0, canvas.width, canvas.height);
+          gl.clearColor(0.02, 0.03, 0.05, 1);
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+          gl.enable(gl.DEPTH_TEST);
+          gl.enable(gl.CULL_FACE);
+          gl.cullFace(gl.BACK);
+          gl.useProgram(program);
+
+          const model = getModelMatrix();
+          const view = mul(translation(0, 0, -camDist), cameraRotation);
+          const aspect = canvas.width / canvas.height;
+          const proj = perspective(Math.PI / 4, aspect, 0.1, 100);
+          const mvp = mul(proj, mul(view, model));
+
+          gl.uniformMatrix4fv(uMVPLoc, false, mvp);
+          gl.uniformMatrix4fv(uModelLoc, false, model);
+          gl.uniform1f(uColorModeLoc, colorMode);
+          gl.uniform1f(uSeasonLoc, SEASONS[currentSeason].value);
+          gl.uniform1f(uTiltLoc, PLANET ? PLANET.tilt : 26.4);
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+          gl.enableVertexAttribArray(aPosLoc);
+          gl.vertexAttribPointer(aPosLoc, 3, gl.FLOAT, false, 0, 0);
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, tempBuf);
+          gl.enableVertexAttribArray(aTempLoc);
+          gl.vertexAttribPointer(aTempLoc, 4, gl.FLOAT, false, 0, 0);
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, humidBuf);
+          gl.enableVertexAttribArray(aHumidLoc);
+          gl.vertexAttribPointer(aHumidLoc, 4, gl.FLOAT, false, 0, 0);
+
+          gl.bindBuffer(gl.ARRAY_BUFFER, envBuf);
+          gl.enableVertexAttribArray(aEnvLoc);
+          gl.vertexAttribPointer(aEnvLoc, 4, gl.FLOAT, false, 0, 0);
+
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+          gl.drawElements(gl.TRIANGLES, sphere.indices.length, indexGLType, 0);
+        }
+
+        let dragging = false;
+        let lastTime = performance.now();
+        function loop(now) {
+          const dt = Math.min(0.1, (now - lastTime) / 1000);
+          lastTime = now;
+          if (!dragging && autoSpin) {
+            applyAutoSpin(dt);
+            needsRender = true;
+          }
+          if (needsRender) {
+            render();
+            needsRender = false;
+          }
+          requestAnimationFrame(loop);
+        }
+
+        let lastX = 0, lastY = 0;
+        canvas.addEventListener('mousedown', e => {
+          dragging = true; lastX = e.clientX; lastY = e.clientY;
+        });
+        window.addEventListener('mouseup', () => { dragging = false; });
+        window.addEventListener('mousemove', e => {
+          if (!dragging) return;
+          const dx = e.clientX - lastX, dy = e.clientY - lastY;
+          lastX = e.clientX; lastY = e.clientY;
+          applyDragRotation(dx, dy);
+          markDirty();
+        });
+        canvas.addEventListener('wheel', e => {
+          e.preventDefault();
+          camDist += e.deltaY * 0.0015;
+          camDist = Math.max(MIN_CAM_DIST, Math.min(MAX_CAM_DIST, camDist));
+          markDirty();
+        }, { passive: false });
+
+        let touchDist = 0;
+        canvas.addEventListener('touchstart', e => {
+          if (e.touches.length === 1) {
+            dragging = true;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+          } else if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            touchDist = Math.sqrt(dx * dx + dy * dy);
+          }
+        }, { passive: true });
+        canvas.addEventListener('touchmove', e => {
+          e.preventDefault();
+          if (e.touches.length === 1 && dragging) {
+            const dx = e.touches[0].clientX - lastX;
+            const dy = e.touches[0].clientY - lastY;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+            applyDragRotation(dx * 1.4, dy * 1.4);
+            markDirty();
+          } else if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            camDist += (touchDist - d) * 0.01;
+            camDist = Math.max(MIN_CAM_DIST, Math.min(MAX_CAM_DIST, camDist));
+            touchDist = d;
+            markDirty();
+          }
+        }, { passive: false });
+        canvas.addEventListener('touchend', () => { dragging = false; });
+
+        /* ===================== 图例 ===================== */
+        const legendContent = document.getElementById('legendContent');
+        function gridLinesHTML() {
+          const tropic = PLANET ? PLANET.tropic.toFixed(1) : '—';
+          const polar = PLANET ? PLANET.polarCircle.toFixed(1) : '—';
+          return '<hr>' +
+            '<div class="row"><div class="sw line" style="background:#383c44"></div>经纬网 15°</div>' +
+            '<div class="row"><div class="sw line" style="background:#1a1a1a"></div>赤道 0°</div>' +
+            '<div class="row"><div class="sw dash"></div>回归线 ±' + tropic + '°</div>' +
+            '<div class="row"><div class="sw dash"></div>极圈 ±' + polar + '°</div>';
+        }
+        function buildElevationLegend() {
+          const ocean = [
+            ['#061628', '最深海'], ['#0e2a42', '深海'],
+            ['#163a52', '中海'], ['#204e62', '浅海'],
+          ];
+          const land = [
+            ['#c8c6a0', '滩涂'], ['#b4be78', '低地平原'],
+            ['#9bb264', '平原'], ['#82a555', '高平原'],
+            ['#699448', '丘陵'], ['#58823e', '低山'],
+            ['#4e6c3a', '中山'], ['#5a603e', '高山灌木'],
+            ['#7c7462', '岩原'], ['#6c6458', '岩山'],
+            ['#969696', '高峰'], ['#e1e6eb', '雪峰'],
+          ];
+          let html = '<div class="title">等高图 · 16 级</div>';
+          html += '<div class="cols"><div class="col">';
+          for (const [c, n] of ocean)
+            html += '<div class="row"><div class="sw" style="background:' + c + '"></div>' + n + '</div>';
+          html += '</div><div class="col">';
+          for (const [c, n] of land)
+            html += '<div class="row"><div class="sw" style="background:' + c + '"></div>' + n + '</div>';
+          html += '</div></div>';
+          html += '<hr>';
+          html += '<div class="row"><div class="sw" style="background:#f0f5fc"></div>极地冰原 / 高海拔雪盖</div>';
+          html += gridLinesHTML();
+          legendContent.innerHTML = html;
+        }
+        const TEMP_COLORS = [
+          { t: -60, c: [0.08, 0.02, 0.18] },
+          { t: -50, c: [0.18, 0.08, 0.42] },
+          { t: -40, c: [0.18, 0.20, 0.62] },
+          { t: -30, c: [0.15, 0.32, 0.75] },
+          { t: -20, c: [0.28, 0.52, 0.88] },
+          { t: -10, c: [0.48, 0.72, 0.94] },
+          { t: 0, c: [0.75, 0.90, 0.96] },
+          { t: 10, c: [0.94, 0.96, 0.78] },
+          { t: 20, c: [0.98, 0.86, 0.42] },
+          { t: 30, c: [0.96, 0.60, 0.22] },
+          { t: 40, c: [0.85, 0.30, 0.15] },
+          { t: 50, c: [0.62, 0.08, 0.06] },
+        ];
+        function tempColorJS(tempC) {
+          const T = TEMP_COLORS;
+          if (tempC <= T[0].t) return T[0].c;
+          if (tempC >= T[T.length - 1].t) return T[T.length - 1].c;
+          for (let i = 0; i < T.length - 1; i++) {
+            if (tempC <= T[i + 1].t) {
+              const f = (tempC - T[i].t) / (T[i + 1].t - T[i].t);
+              const a = T[i].c, b = T[i + 1].c;
+              return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+            }
+          }
+          return T[T.length - 1].c;
+        }
+        function rgbToHex(rgb) {
+          const toByte = v => Math.max(0, Math.min(255, Math.round(v * 255)));
+          return '#' +
+            toByte(rgb[0]).toString(16).padStart(2, '0') +
+            toByte(rgb[1]).toString(16).padStart(2, '0') +
+            toByte(rgb[2]).toString(16).padStart(2, '0');
+        }
+        function buildTempLegend() {
+          const minT = PLANET.minTemp, maxT = PLANET.maxTemp;
+          const start = Math.floor(minT / 10) * 10;
+          const end = Math.ceil(maxT / 10) * 10;
+          const ticks = [];
+          for (let t = start; t <= end; t += 10) ticks.push(t);
+          const step = ticks.length > 9 ? 2 : 1;
+          let html = '<div class="title">温度图</div>';
+          for (let i = ticks.length - 1; i >= 0; i -= step) {
+            const t = ticks[i];
+            const hex = rgbToHex(tempColorJS(t));
+            const label = (t >= 0 ? '+' : '') + t + '°C';
+            html += '<div class="row"><div class="sw" style="background:' + hex + '"></div>' + label + '</div>';
+          }
+          html += '<hr>';
+          html += '<div class="hint">标准 10°C 色阶（-60 ~ +50°C）</div>';
+          html += '<div class="hint">随季节实时变化</div>';
+          html += gridLinesHTML();
+          legendContent.innerHTML = html;
+        }
+        function buildHumidityLegend() {
+          const bands = [
+            ['#6b3d1a', '干旱 <200mm'],
+            ['#cc9e4d', '半干旱 200-400mm'],
+            ['#a6d17a', '半湿润 400-800mm'],
+            ['#248c61', '湿润 >800mm'],
+          ];
+          let html = '<div class="title">湿度图 · 4 级等降水带</div>';
+          html += '<div class="cols"><div class="col">';
+          for (let i = 0; i < 2; i++) {
+            const [c, n] = bands[i];
+            html += '<div class="row"><div class="sw" style="background:' + c + '"></div>' + n + '</div>';
+          }
+          html += '</div><div class="col">';
+          for (let i = 2; i < bands.length; i++) {
+            const [c, n] = bands[i];
+            html += '<div class="row"><div class="sw" style="background:' + c + '"></div>' + n + '</div>';
+          }
+          html += '</div></div>';
+          html += '<hr>';
+          html += '<div class="hint">随季节实时变化</div>';
+          html += '<div class="hint">气压带 + 洋流 + 大陆度 + 季风</div>';
+          html += gridLinesHTML();
+          legendContent.innerHTML = html;
+        }
+        function buildClimateLegend() {
+          const items = [
+            ['#f5f5fc', '冰原'],
+            ['#9eb8ae', '苔原'],
+            ['#1a6b52', '亚寒带湿润'],
+            ['#667570', '亚寒带干旱'],
+            ['#40b852', '温带海洋性'],
+            ['#8c9e38', '温带大陆性'],
+            ['#ccb859', '温带草原'],
+            ['#59b84d', '温带季风'],
+            ['#26c76b', '亚热带季风'],
+            ['#ebc733', '地中海'],
+            ['#e08540', '亚热带沙漠'],
+            ['#0a5c14', '热带雨林'],
+            ['#339e40', '热带季风'],
+            ['#adbd38', '热带草原'],
+            ['#fac760', '热带沙漠'],
+            ['#b3a389', '高原山地'],
+          ];
+          let html = '<div class="title">气候图 · 16 类</div>';
+          html += '<div class="cols"><div class="col">';
+          for (let i = 0; i < 8; i++) {
+            const [c, n] = items[i];
+            html += '<div class="row"><div class="sw" style="background:' + c + '"></div>' + n + '</div>';
+          }
+          html += '</div><div class="col">';
+          for (let i = 8; i < items.length; i++) {
+            const [c, n] = items[i];
+            html += '<div class="row"><div class="sw" style="background:' + c + '"></div>' + n + '</div>';
+          }
+          html += '</div></div>';
+          html += '<hr>';
+          html += '<div class="hint">基于四季温湿度统计特征</div>';
+          html += '<div class="hint">不随季节切换变化</div>';
+          html += gridLinesHTML();
+          legendContent.innerHTML = html;
+        }
+
+        const seedEl = document.getElementById('seedEl');
+        const spinBtn = document.getElementById('spinBtn');
+        const modeBtn = document.getElementById('modeBtn');
+        const seasonBtn = document.getElementById('seasonBtn');
+        const regenBtn = document.getElementById('regenBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const MODES = [
+          { name: '等高图', legend: buildElevationLegend },
+          { name: '温度图', legend: buildTempLegend },
+          { name: '湿度图', legend: buildHumidityLegend },
+          { name: '气候图', legend: buildClimateLegend },
+        ];
+        const loadingEl = document.getElementById('loading');
+        const barFill = document.getElementById('barFill');
+        const loadStatus = document.getElementById('loadStatus');
+        const loadPercent = document.getElementById('loadPercent');
+        const legendEl = document.getElementById('legend');
+
+        function setProgress(p, status) {
+          const percent = Math.round(Math.max(0, Math.min(1, p)) * 100);
+          barFill.style.width = percent + '%';
+          loadPercent.textContent = percent + '%';
+          if (status) loadStatus.textContent = status;
+        }
+        function resetProgress(status) {
+          barFill.style.transition = 'none';
+          barFill.style.width = '0%';
+          loadPercent.textContent = '0%';
+          if (status) loadStatus.textContent = status;
+          void barFill.offsetWidth;
+          requestAnimationFrame(() => {
+            barFill.style.transition = 'width .15s ease';
+          });
+        }
+
+        /* ===================== 生成 + 上传 ===================== */
+        async function generateAndUpload() {
+          resetProgress('校准海平面…');
+          await nextFrame();
+          await recomputeSeaLevel(p => setProgress(p * 0.05, '校准海平面…'));
+
+          setProgress(0.05, '计算海岸距离网格…');
+          await computeCoastGrid(p => setProgress(0.05 + p * 0.10, '计算海岸距离网格…'));
+
+          setProgress(0.15, '计算顶点数据…');
+          const data = await generateVertexData(sphere, (p, msg) => {
+            setProgress(0.15 + p * 0.80, msg || '计算顶点数据…');
+          });
+
+          setProgress(0.96, '上传到 GPU…');
+          await nextFrame();
+          uploadVertexAttribs(data);
+
+          lastResult = data;
+
+          setProgress(1.0, '完成');
+          await nextFrame();
+          markDirty();
+        }
+
+        let generating = false;
+        function setUIEnabled(on) {
+          regenBtn.disabled = !on;
+          modeBtn.disabled = !on;
+          seasonBtn.disabled = !on;
+          resetBtn.disabled = !on;
+          spinBtn.disabled = !on;
+          downloadBtn.disabled = !on;
+        }
+
+        regenBtn.addEventListener('click', async () => {
+          if (generating) return;
+          generating = true;
+          setUIEnabled(false);
+          CURRENT_SEED = Math.floor(Math.random() * 1000000);
+          PLANET = generatePlanetParams(CURRENT_SEED);
+          seedEl.textContent = CURRENT_SEED.toString();
+          currentSeason = 0;
+          seasonBtn.textContent = SEASONS[currentSeason].name;
+          setDefaultView();
+          updatePlanetInfo();
+          MODES[colorMode].legend();
+          loadingEl.classList.remove('hidden');
+          legendEl.style.opacity = '0';
+          try {
+            const t0 = performance.now();
+            await generateAndUpload();
+            const el = performance.now() - t0;
+            if (el < 400) await new Promise(r => setTimeout(r, 400 - el));
+            loadingEl.classList.add('hidden');
+            legendEl.style.opacity = '1';
+          } catch (err) {
+            console.error('重新生成失败:', err);
+            loadStatus.textContent = '错误: ' + err.message;
+            loadStatus.style.color = '#e08080';
+          } finally {
+            generating = false;
+            setUIEnabled(true);
+          }
+        });
+
+        resetBtn.addEventListener('click', () => {
+          setDefaultView();
+          markDirty();
+        });
+        spinBtn.addEventListener('click', () => {
+          autoSpin = !autoSpin;
+          spinBtn.textContent = autoSpin ? '暂停自转' : '继续自转';
+          markDirty();
+        });
+        modeBtn.addEventListener('click', () => {
+          colorMode = (colorMode + 1) % 4;
+          modeBtn.textContent = MODES[colorMode].name;
+          modeBtn.classList.add('active');
+          MODES[colorMode].legend();
+          markDirty();
+        });
+        seasonBtn.addEventListener('click', () => {
+          currentSeason = (currentSeason + 1) % SEASONS.length;
+          seasonBtn.textContent = SEASONS[currentSeason].name;
+          document.getElementById('infoSeason').textContent = SEASONS[currentSeason].name;
+          markDirty();
+        });
+
+        /* ===================== 下载地图 ===================== */
+        const exportVsSource = `
+attribute vec2 aPos;
+varying vec2 vUV;
+void main() {
+  vUV = vec2((aPos.x + 1.0) * 0.5, (1.0 - aPos.y) * 0.5);
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}
+`;
+
+        const exportFsSource = `
+precision highp float;
+varying vec2 vUV;
+uniform float uColorMode;
+uniform float uSeason;
+uniform sampler2D uElevTex;
+uniform sampler2D uTempAtlas;
+uniform sampler2D uHumidAtlas;
+uniform sampler2D uClimateTex;
+
+const float TEMP_MIN = -125.0;
+const float TEMP_RANGE = 175.0;
+
+vec3 elevationColor(float elev) {
+  if (elev < -0.55) return vec3(  6.0,  22.0,  40.0) / 255.0;
+  if (elev < -0.30) return vec3( 14.0,  42.0,  66.0) / 255.0;
+  if (elev < -0.14) return vec3( 22.0,  58.0,  82.0) / 255.0;
+  if (elev <  0.00) return vec3( 32.0,  78.0,  98.0) / 255.0;
+  if (elev < 0.05) return vec3(200.0, 198.0, 160.0) / 255.0;
+  if (elev < 0.12) return vec3(180.0, 190.0, 120.0) / 255.0;
+  if (elev < 0.22) return vec3(155.0, 178.0, 100.0) / 255.0;
+  if (elev < 0.34) return vec3(130.0, 165.0,  85.0) / 255.0;
+  if (elev < 0.48) return vec3(105.0, 148.0,  72.0) / 255.0;
+  if (elev < 0.62) return vec3( 88.0, 130.0,  62.0) / 255.0;
+  if (elev < 0.78) return vec3( 78.0, 108.0,  58.0) / 255.0;
+  if (elev < 0.95) return vec3( 90.0,  96.0,  62.0) / 255.0;
+  if (elev < 1.12) return vec3(124.0, 116.0,  98.0) / 255.0;
+  if (elev < 1.30) return vec3(108.0, 100.0,  88.0) / 255.0;
+  if (elev < 1.50) return vec3(150.0, 150.0, 150.0) / 255.0;
+  return vec3(225.0, 230.0, 235.0) / 255.0;
+}
+vec3 tempColor(float tempC) {
+  float t = clamp((tempC + 60.0) / 10.0, 0.0, 11.0);
+  int i = int(floor(t));
+  float f = t - float(i);
+  vec3 a, b;
+  if      (i == 0)  { a = vec3(0.08, 0.02, 0.18); b = vec3(0.18, 0.08, 0.42); }
+  else if (i == 1)  { a = vec3(0.18, 0.08, 0.42); b = vec3(0.18, 0.20, 0.62); }
+  else if (i == 2)  { a = vec3(0.18, 0.20, 0.62); b = vec3(0.15, 0.32, 0.75); }
+  else if (i == 3)  { a = vec3(0.15, 0.32, 0.75); b = vec3(0.28, 0.52, 0.88); }
+  else if (i == 4)  { a = vec3(0.28, 0.52, 0.88); b = vec3(0.48, 0.72, 0.94); }
+  else if (i == 5)  { a = vec3(0.48, 0.72, 0.94); b = vec3(0.75, 0.90, 0.96); }
+  else if (i == 6)  { a = vec3(0.75, 0.90, 0.96); b = vec3(0.94, 0.96, 0.78); }
+  else if (i == 7)  { a = vec3(0.94, 0.96, 0.78); b = vec3(0.98, 0.86, 0.42); }
+  else if (i == 8)  { a = vec3(0.98, 0.86, 0.42); b = vec3(0.96, 0.60, 0.22); }
+  else if (i == 9)  { a = vec3(0.96, 0.60, 0.22); b = vec3(0.85, 0.30, 0.15); }
+  else if (i == 10) { a = vec3(0.85, 0.30, 0.15); b = vec3(0.62, 0.08, 0.06); }
+  else              { a = vec3(0.62, 0.08, 0.06); b = vec3(0.62, 0.08, 0.06); }
+  return mix(a, b, f);
+}
+vec3 climateColor(float c) {
+  if (c <  0.5) return vec3(0.96, 0.96, 0.99);
+  if (c <  1.5) return vec3(0.62, 0.72, 0.68);
+  if (c <  2.5) return vec3(0.10, 0.42, 0.32);
+  if (c <  3.5) return vec3(0.40, 0.46, 0.42);
+  if (c <  4.5) return vec3(0.25, 0.72, 0.32);
+  if (c <  5.5) return vec3(0.55, 0.62, 0.22);
+  if (c <  6.5) return vec3(0.80, 0.72, 0.35);
+  if (c <  7.5) return vec3(0.35, 0.72, 0.30);
+  if (c <  8.5) return vec3(0.15, 0.78, 0.42);
+  if (c <  9.5) return vec3(0.92, 0.78, 0.20);
+  if (c < 10.5) return vec3(0.88, 0.52, 0.25);
+  if (c < 11.5) return vec3(0.04, 0.36, 0.08);
+  if (c < 12.5) return vec3(0.20, 0.62, 0.25);
+  if (c < 13.5) return vec3(0.68, 0.74, 0.22);
+  if (c < 14.5) return vec3(0.98, 0.78, 0.38);
+  return vec3(0.70, 0.64, 0.54);
+}
+void main() {
+  vec2 uv = vUV;
+  float elev = texture2D(uElevTex, uv).r * 3.0 - 1.0;
+  bool isOcean = elev < 0.0;
+  vec3 col;
+
+  if (uColorMode < 0.5) {
+    col = elevationColor(elev);
+    if (!isOcean) {
+      float c = texture2D(uClimateTex, uv).r * 255.0;
+      if (c < 0.5) col = vec3(0.94, 0.96, 0.99);
+    }
+  } else if (uColorMode < 1.5) {
+    float sIdx = uSeason * 4.0;
+    vec2 tUV = vec2(uv.x, (uv.y + sIdx) * 0.25);
+    float tNorm = texture2D(uTempAtlas, tUV).r;
+    float tempC = tNorm * TEMP_RANGE + TEMP_MIN;
+    vec3 bg = tempColor(tempC);
+    if (!isOcean) bg = bg * 0.80 + vec3(0.05);
+    col = bg;
+  } else if (uColorMode < 2.5) {
+    float sIdx = uSeason * 4.0;
+    vec2 hUV = vec2(uv.x, (uv.y + sIdx) * 0.25);
+    float hNorm = texture2D(uHumidAtlas, hUV).r;
+    vec3 humidBg;
+    if      (hNorm < 0.17) humidBg = vec3(0.42, 0.24, 0.10);
+    else if (hNorm < 0.33) humidBg = vec3(0.80, 0.62, 0.30);
+    else if (hNorm < 0.67) humidBg = vec3(0.65, 0.82, 0.48);
+    else                   humidBg = vec3(0.14, 0.55, 0.38);
+    if (isOcean) humidBg *= 0.55;
+    col = humidBg;
+  } else {
+    if (isOcean) {
+      float depth = clamp(-elev / 0.7, 0.0, 1.0);
+      col = mix(vec3(0.18, 0.30, 0.42), vec3(0.08, 0.15, 0.24), depth);
+    } else {
+      float c = texture2D(uClimateTex, uv).r * 255.0;
+      col = climateColor(c);
+    }
+  }
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+        function downloadMap() {
+          if (!lastResult) {
+            alert('地图数据尚未生成完毕，请稍等');
+            return;
+          }
+
+          const EXPORT_W = 8192, EXPORT_H = 4096;
+
+          const expCanvas = document.createElement('canvas');
+          expCanvas.width = EXPORT_W;
+          expCanvas.height = EXPORT_H;
+          const expGl = expCanvas.getContext('webgl', {
+            preserveDrawingBuffer: true,
+            antialias: false,
+          });
+          if (!expGl) { alert('无法创建导出用的 WebGL 上下文'); return; }
+
+          function compileShader(ctx, type, src) {
+            const sh = ctx.createShader(type);
+            ctx.shaderSource(sh, src);
+            ctx.compileShader(sh);
+            if (!ctx.getShaderParameter(sh, ctx.COMPILE_STATUS)) {
+              console.error('导出 shader 编译失败:', ctx.getShaderInfoLog(sh));
+              return null;
+            }
+            return sh;
+          }
+          const expVs = compileShader(expGl, expGl.VERTEX_SHADER, exportVsSource);
+          const expFs = compileShader(expGl, expGl.FRAGMENT_SHADER, exportFsSource);
+          if (!expVs || !expFs) return;
+          const expProg = expGl.createProgram();
+          expGl.attachShader(expProg, expVs);
+          expGl.attachShader(expProg, expFs);
+          expGl.linkProgram(expProg);
+          if (!expGl.getProgramParameter(expProg, expGl.LINK_STATUS)) {
+            console.error('导出 program 链接失败:', expGl.getProgramInfoLog(expProg));
+            return;
+          }
+
+          function makeTex(data, w, h) {
+            const tex = expGl.createTexture();
+            expGl.bindTexture(expGl.TEXTURE_2D, tex);
+            expGl.texParameteri(expGl.TEXTURE_2D, expGl.TEXTURE_WRAP_S, expGl.CLAMP_TO_EDGE);
+            expGl.texParameteri(expGl.TEXTURE_2D, expGl.TEXTURE_WRAP_T, expGl.CLAMP_TO_EDGE);
+            expGl.texParameteri(expGl.TEXTURE_2D, expGl.TEXTURE_MIN_FILTER, expGl.LINEAR);
+            expGl.texParameteri(expGl.TEXTURE_2D, expGl.TEXTURE_MAG_FILTER, expGl.LINEAR);
+            expGl.pixelStorei(expGl.UNPACK_ALIGNMENT, 1);
+            expGl.texImage2D(expGl.TEXTURE_2D, 0, expGl.RGBA, w, h, 0,
+              expGl.RGBA, expGl.UNSIGNED_BYTE, data);
+            return tex;
+          }
+          const texElev = makeTex(lastResult.texElev, TEX_W, TEX_H);
+          const texTemp = makeTex(lastResult.texTemp, TEX_W, TEMP_ATLAS_H);
+          const texHumid = makeTex(lastResult.texHumid, TEX_W, TEMP_ATLAS_H);
+          const texClimate = makeTex(lastResult.texClimate, TEX_W, TEX_H);
+
+          const quadData = new Float32Array([
+            -1, -1, 1, -1, -1, 1,
+            -1, 1, 1, -1, 1, 1,
+          ]);
+          const vbo = expGl.createBuffer();
+          expGl.bindBuffer(expGl.ARRAY_BUFFER, vbo);
+          expGl.bufferData(expGl.ARRAY_BUFFER, quadData, expGl.STATIC_DRAW);
+
+          expGl.viewport(0, 0, EXPORT_W, EXPORT_H);
+          expGl.clearColor(0, 0, 0, 1);
+          expGl.clear(expGl.COLOR_BUFFER_BIT);
+          expGl.useProgram(expProg);
+
+          const aPosLocExp = expGl.getAttribLocation(expProg, 'aPos');
+          expGl.bindBuffer(expGl.ARRAY_BUFFER, vbo);
+          expGl.enableVertexAttribArray(aPosLocExp);
+          expGl.vertexAttribPointer(aPosLocExp, 2, expGl.FLOAT, false, 0, 0);
+
+          expGl.activeTexture(expGl.TEXTURE0);
+          expGl.bindTexture(expGl.TEXTURE_2D, texElev);
+          expGl.uniform1i(expGl.getUniformLocation(expProg, 'uElevTex'), 0);
+          expGl.activeTexture(expGl.TEXTURE1);
+          expGl.bindTexture(expGl.TEXTURE_2D, texTemp);
+          expGl.uniform1i(expGl.getUniformLocation(expProg, 'uTempAtlas'), 1);
+          expGl.activeTexture(expGl.TEXTURE2);
+          expGl.bindTexture(expGl.TEXTURE_2D, texHumid);
+          expGl.uniform1i(expGl.getUniformLocation(expProg, 'uHumidAtlas'), 2);
+          expGl.activeTexture(expGl.TEXTURE3);
+          expGl.bindTexture(expGl.TEXTURE_2D, texClimate);
+          expGl.uniform1i(expGl.getUniformLocation(expProg, 'uClimateTex'), 3);
+
+          expGl.uniform1f(expGl.getUniformLocation(expProg, 'uColorMode'), colorMode);
+          expGl.uniform1f(expGl.getUniformLocation(expProg, 'uSeason'), SEASONS[currentSeason].value);
+
+          expGl.drawArrays(expGl.TRIANGLES, 0, 6);
+
+          const dataURL = expCanvas.toDataURL('image/png');
+          const modeName = MODES[colorMode].name.replace('图', '');
+          const seasonName = SEASONS[currentSeason].name;
+          const fileName = `行星_${modeName}_${seasonName}_${CURRENT_SEED}.png`;
+
+          const a = document.createElement('a');
+          a.href = dataURL;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+
+          expGl.deleteTexture(texElev);
+          expGl.deleteTexture(texTemp);
+          expGl.deleteTexture(texHumid);
+          expGl.deleteTexture(texClimate);
+          expGl.deleteBuffer(vbo);
+          expGl.deleteProgram(expProg);
+        }
+
+        downloadBtn.addEventListener('click', downloadMap);
+
+        /* ===================== 启动 ===================== */
+        async function boot() {
+          generating = true;
+          setUIEnabled(false);
+          try {
+            await new Promise(r => setTimeout(r, 50));
+            const t0 = performance.now();
+            PLANET = generatePlanetParams(CURRENT_SEED);
+            seedEl.textContent = CURRENT_SEED.toString();
+            setDefaultView();
+            updatePlanetInfo();
+            buildElevationLegend();
+            seasonBtn.textContent = SEASONS[currentSeason].name;
+            await generateAndUpload();
+            const el = performance.now() - t0;
+            console.log('球体：', sphere.vertCount, '顶点 /', sphere.faceCount, '面');
+            console.log('生成耗时：', Math.round(el) + 'ms');
+            if (el < 500) await new Promise(r => setTimeout(r, 500 - el));
+            loadingEl.classList.add('hidden');
+            legendEl.style.opacity = '1';
+            requestAnimationFrame(loop);
+          } catch (err) {
+            console.error('启动失败:', err);
+            loadStatus.textContent = '错误: ' + err.message;
+            loadStatus.style.color = '#e08080';
+          } finally {
+            generating = false;
+            setUIEnabled(true);
+          }
+        }
+        boot();
+
+      })();
+    }, 0);
+  </script>
+</body>
+
+</html>

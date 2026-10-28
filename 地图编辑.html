@@ -1,0 +1,2070 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>可编辑中国地图 - 编辑器（省市两级 · 官方 TopoJSON 源）</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #map {
+      flex: 1;
+      height: 100%;
+      background: #fff;
+    }
+
+    #toolbar {
+      width: 280px;
+      background: #fff;
+      border-left: 1px solid #e0e0e0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.04);
+      z-index: 10;
+    }
+
+    #toolbar h2 {
+      font-size: 16px;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+    }
+
+    #toolbar .hint {
+      font-size: 12px;
+      color: #999;
+      line-height: 1.6;
+      margin-bottom: 6px;
+    }
+
+    .selected-list {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 80px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+
+    .selected-list .empty {
+      color: #bbb;
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    .selected-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #e8f0fe;
+      color: #1a73e8;
+      padding: 4px 10px;
+      border-radius: 14px;
+      margin: 3px;
+      font-size: 12px;
+    }
+
+    .selected-tag.merged {
+      background: #fef7e0;
+      color: #b06000;
+    }
+
+    .selected-tag .tag-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      opacity: 0.65;
+      letter-spacing: 0.3px;
+    }
+
+    .selected-tag.direct {
+      background: #f3e8fd;
+      color: #7b1fa2;
+    }
+
+    .selected-tag .remove {
+      cursor: pointer;
+      font-weight: bold;
+      color: #5f6368;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .selected-tag .remove:hover {
+      color: #d93025;
+    }
+
+    button {
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-weight: 500;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    #btn-merge {
+      background: #1a73e8;
+      color: #fff;
+    }
+
+    #btn-merge:hover:not(:disabled) {
+      background: #1557b0;
+    }
+
+    #btn-level {
+      background: #e6f4ea;
+      color: #137333;
+    }
+
+    #btn-level:hover:not(:disabled) {
+      background: #ceead6;
+    }
+
+    #btn-cache-all {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    #btn-cache-all:hover:not(:disabled) {
+      background: #bbf7d0;
+    }
+
+    #btn-clear-cache {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    #btn-clear-cache:hover:not(:disabled) {
+      background: #fecaca;
+    }
+
+    #btn-export-cache {
+      background: #e8f0fe;
+      color: #1a73e8;
+    }
+
+    #btn-export-cache:hover:not(:disabled) {
+      background: #d2e3fc;
+    }
+
+    #btn-import-cache {
+      background: #f3e8fd;
+      color: #7b1fa2;
+    }
+
+    #btn-import-cache:hover:not(:disabled) {
+      background: #e9d8fc;
+    }
+
+    #btn-rename {
+      background: #fef7e0;
+      color: #b06000;
+    }
+
+    #btn-rename:hover:not(:disabled) {
+      background: #feefc3;
+    }
+
+    #btn-edit-code {
+      background: #f3e8fd;
+      color: #7b1fa2;
+    }
+
+    #btn-edit-code:hover:not(:disabled) {
+      background: #e9d8fc;
+    }
+
+    #btn-separate {
+      background: #fce8e6;
+      color: #c5221f;
+    }
+
+    #btn-separate:hover:not(:disabled) {
+      background: #fad2cf;
+    }
+
+    #btn-direct {
+      background: #f3e8fd;
+      color: #7b1fa2;
+    }
+
+    #btn-direct:hover:not(:disabled) {
+      background: #e9d8fc;
+    }
+
+    #btn-reset {
+      background: #f1f3f4;
+      color: #3c4043;
+    }
+
+    #btn-reset:hover {
+      background: #e8eaed;
+    }
+
+    .code-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #999;
+      margin-bottom: -4px;
+    }
+
+    #codeOutput {
+      width: 100%;
+      height: 88px;
+      resize: vertical;
+      padding: 10px 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      letter-spacing: 0.5px;
+      color: #1a73e8;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      outline: none;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    #codeOutput:focus {
+      border-color: #1a73e8;
+      background: #fff;
+    }
+
+    #codeOutput::placeholder {
+      color: #bbb;
+      letter-spacing: 0;
+    }
+
+    .cache-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .cache-row button {
+      flex: 1;
+    }
+
+    .cache-badge {
+      font-size: 11px;
+      color: #166534;
+      background: #dcfce7;
+      padding: 4px 8px;
+      border-radius: 6px;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    #status {
+      font-size: 12px;
+      color: #5f6368;
+      padding: 8px 12px;
+      background: #fef7e0;
+      border-radius: 6px;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="map"></div>
+
+  <div id="toolbar">
+    <h2>🗺️ 地图编辑器</h2>
+
+    <div class="cache-row">
+      <button id="btn-cache-all">📦 缓存数据</button>
+      <button id="btn-clear-cache">🗑️ 清空缓存</button>
+    </div>
+    <div class="cache-row">
+      <button id="btn-export-cache">💾 导出缓存</button>
+      <button id="btn-import-cache">📂 导入缓存）</button>
+    </div>
+    <input type="file" id="importFile" accept=".json,.gz,.json.gz,application/json,application/gzip" hidden>
+    <div class="cache-badge" id="cacheStatus">本地缓存：检查中…</div>
+
+    <button id="btn-level">🗺️ 切换到地级区划</button>
+
+    <div class="selected-list" id="selectedList">
+      <div class="empty">未选中任何区域</div>
+    </div>
+
+    <button id="btn-merge" disabled>🔗 合并</button>
+    <button id="btn-rename" disabled>✏️ 重命名选中区域</button>
+    <button id="btn-edit-code" disabled>🔢 修改区划代码</button>
+    <button id="btn-separate" disabled>✂️ 分离选中区域</button>
+    <button id="btn-direct" disabled>⬆️ 设为直辖市</button>
+    <button id="btn-reset">🔄 重置当前区划</button>
+
+    <div class="code-label">
+      <span>🔢 选中区划代码</span>
+      <span id="codeCount">0 项</span>
+    </div>
+    <textarea id="codeOutput" readonly spellcheck="false" placeholder="选中省 / 市后，这里输出对应的区划代码…"></textarea>
+
+    <div id="status">⏳ 正在加载地图数据…</div>
+  </div>
+
+  <script>
+    // ============================================================
+    // 0. 依赖加载
+    // ============================================================
+    function loadScript(url) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = url; s.async = false;
+        s.onload = () => resolve(url);
+        s.onerror = () => reject(new Error('无法加载: ' + url));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function ensureLib(urls, check) {
+      if (check()) return true;
+      for (const url of urls) {
+        try { await loadScript(url); if (check()) return true; }
+        catch (e) { console.warn(e.message); }
+      }
+      return check();
+    }
+
+    async function ensureDependencies() {
+      const echartsUrls = [
+        'https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js',
+        'https://unpkg.com/echarts@5.4.3/dist/echarts.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js'
+      ];
+      const turfUrls = [
+        'https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js',
+        'https://unpkg.com/@turf/turf@6.5.0/turf.min.js'
+      ];
+      const topojsonUrls = [
+        'https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js',
+        'https://unpkg.com/topojson-client@3/dist/topojson-client.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js'
+      ];
+
+      updateStatus('⏳ 正在加载 ECharts…');
+      const okE = await ensureLib(echartsUrls, () => typeof window.echarts !== 'undefined');
+      if (!okE) throw new Error('ECharts 加载失败，请检查网络');
+
+      updateStatus('⏳ 正在加载 Turf.js…');
+      const okT = await ensureLib(turfUrls, () => typeof window.turf !== 'undefined');
+      if (!okT) console.warn('Turf.js 未加载，合并会回退到简单拼接。');
+
+      updateStatus('⏳ 正在加载 TopoJSON…');
+      const okTopo = await ensureLib(topojsonUrls, () => typeof window.topojson !== 'undefined');
+      if (!okTopo) throw new Error('TopoJSON 客户端加载失败。');
+
+      return { okE, okT, okTopo };
+    }
+
+    // ============================================================
+    // 0.1 gzip 工具
+    // ============================================================
+    function hasCompression() {
+      return typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
+    }
+
+    async function gzipText(text) {
+      if (!hasCompression()) return null;
+      const cs = new CompressionStream('gzip');
+      const stream = new Blob([text]).stream().pipeThrough(cs);
+      return await new Response(stream).arrayBuffer();
+    }
+
+    async function readMaybeGzip(file) {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+      if (!isGzip) return new TextDecoder('utf-8').decode(buf);
+      if (typeof DecompressionStream === 'undefined') {
+        throw new Error('该文件是 gzip 压缩的，但当前浏览器不支持解压。请使用较新的 Chrome / Edge / Firefox。');
+      }
+      const ds = new DecompressionStream('gzip');
+      const stream = new Blob([buf]).stream().pipeThrough(ds);
+      return await new Response(stream).text();
+    }
+
+    // ============================================================
+    // 1. IndexedDB 缓存层
+    // ============================================================
+    const DB_NAME = 'china-map-cache';
+    // 只作为导出文件里的格式标记，不用于 indexedDB.open：
+    // 库里已有的版本可能比这里高（别的版本页面建过更高版本），
+    // 用低版本号打开会直接抛 VersionError。
+    const DB_VERSION = 2;
+    const STORE_NAME = 'geojson';
+
+    let dbPromise = null;
+
+    function attachVersionChangeGuard(db) {
+      db.onversionchange = () => {
+        try { db.close(); } catch (e) { /* ignore */ }
+        dbPromise = null;
+      };
+      return db;
+    }
+
+    // 不带版本号打开：已存在就沿用现有版本，不存在时浏览器按 v1 创建并触发 upgradeneeded。
+    function openCurrentVersion() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => reject(new Error('本地数据库被其他地图标签页占用，请关闭后重试。'));
+      });
+    }
+
+    // 库已存在但没有我们的 objectStore（例如被别的应用建过同名库）时，升一级补建。
+    function ensureStore(db) {
+      if (db.objectStoreNames.contains(STORE_NAME)) return Promise.resolve(db);
+      const nextVersion = db.version + 1;
+      try { db.close(); } catch (e) { /* ignore */ }
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, nextVersion);
+        req.onupgradeneeded = () => {
+          const up = req.result;
+          if (!up.objectStoreNames.contains(STORE_NAME)) up.createObjectStore(STORE_NAME);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => reject(new Error(`本地数据库需要升级到第 ${nextVersion} 版，但被其他标签页占用，请关闭后重试。`));
+      });
+    }
+
+    function openDB() {
+      if (dbPromise) return dbPromise;
+      dbPromise = openCurrentVersion()
+        .then(ensureStore)
+        .then(attachVersionChangeGuard)
+        .catch((err) => { dbPromise = null; throw err; });
+      return dbPromise;
+    }
+
+    async function dbGet(key) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbPut(key, value) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const req = tx.objectStore(STORE_NAME).put(value, key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbPutMany(obj) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        Object.keys(obj).forEach(k => store.put(obj[k], k));
+        tx.oncomplete = () => resolve(Object.keys(obj).length);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('写入被中止'));
+      });
+    }
+
+    async function dbGetAll() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const out = {};
+        const req = store.openCursor();
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) { out[cursor.key] = cursor.value; cursor.continue(); }
+          else { resolve(out); }
+        };
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbHas(key) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getKey(key);
+        req.onsuccess = () => resolve(req.result !== undefined);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbCount() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).count();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function dbClear() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const req = tx.objectStore(STORE_NAME).clear();
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function refreshCacheBadge() {
+      try {
+        const n = await dbCount();
+        const el = document.getElementById('cacheStatus');
+        if (n === 0) el.textContent = '本地缓存：空（可点「缓存数据」或「导入缓存」）';
+        else el.textContent = `✅ 本地已缓存 ${n} 项，可离线使用`;
+      } catch (e) {
+        const why = e && e.message ? e.message : String(e || '');
+        document.getElementById('cacheStatus').textContent = '本地缓存：不可用' + (why ? '（' + why + '）' : '');
+      }
+    }
+
+    // ============================================================
+    // 2. 配置与状态 —— 官方 China Atlas API
+    // ============================================================
+    const CHINA_ATLAS_BASE = 'https://geojson.cn/api/china/1.6.3/';
+    const CHINA_ROOT_FILE = '100000';
+    const FETCH_TIMEOUT = 30000;
+
+    // 合并距离（米）：合并前把每个面外扩这么多，合并后再整体缩回，
+    // 用以焊死相邻区域之间因为精度/拓扑导致的细小缝隙。
+    const MERGE_GAP_METERS = 2;
+
+    // 行政区以「行政编码」为唯一标识：
+    //   - selected 存的是 adcode（不是名称）
+    //   - merges: adcode → { names, parts }，记录合并前的成员，供「分离」还原
+    //   - 名称只是显示用，不参与任何判断
+    const LEVELS = {
+      province: { key: 'province', name: '省级', original: null, editable: null, merges: new Map(), selected: [] },
+      city: { key: 'city', name: '地级', original: null, editable: null, merges: new Map(), selected: [] }
+    };
+
+    let currentLevel = 'province';
+    let chart = null;
+    let switching = false;
+    let caching = false;
+
+    const topoCache = new Map();
+
+    const S = () => LEVELS[currentLevel];
+
+    function atlasUrl(fileCode, level = 'country') {
+      if (level === 'country') {
+        return `${CHINA_ATLAS_BASE}${fileCode}.topo.json`;
+      }
+      if (level === 'province') {
+        return `${CHINA_ATLAS_BASE}${fileCode}.topo.json`;
+      }
+      if (level === 'city') {
+        const provPrefix = String(fileCode).slice(0, 2);
+        return `${CHINA_ATLAS_BASE}${provPrefix}0000/${fileCode}.topo.json`;
+      }
+      throw new Error('未知层级: ' + level);
+    }
+
+    async function fetchTopoJSON(url) {
+      if (topoCache.has(url)) return topoCache.get(url);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+      try {
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status} @ ${url}`);
+        const json = await res.json();
+        topoCache.set(url, json);
+        return json;
+      } finally { clearTimeout(timer); }
+    }
+
+    function topoToGeo(topo, objectName = 'default') {
+      if (!topo || topo.type !== 'Topology' || !topo.objects) {
+        throw new Error('非 TopoJSON 数据');
+      }
+      const objKey = topo.objects[objectName] ? objectName : Object.keys(topo.objects)[0];
+      const geo = topojson.feature(topo, topo.objects[objKey]);
+      (geo.features || []).forEach(f => {
+        const p = f.properties || {};
+        f.properties = {
+          ...p,
+          name: p.name || p.fullname || p.NAME || '',
+          adcode: String(p.code || p.adcode || '')
+        };
+      });
+      return geo;
+    }
+
+    // ============================================================
+    // 3. 数据加载 —— 官方 API 路径
+    // ============================================================
+    async function loadProvinceLevel() {
+      updateStatus('⏳ 加载省级数据…');
+      const topo = await fetchTopoJSON(atlasUrl(CHINA_ROOT_FILE, 'country'));
+      let geo = topoToGeo(topo, 'default');
+      geo.features = geo.features.filter(f => f.properties.name && f.properties.name !== '南海诸岛');
+      return geo;
+    }
+
+    async function loadCityLevel() {
+      updateStatus('⏳ 加载省级索引…');
+      const provTopo = await fetchTopoJSON(atlasUrl(CHINA_ROOT_FILE, 'country'));
+      const provGeo = topoToGeo(provTopo, 'default');
+
+      const provinces = provGeo.features.filter(f => {
+        const p = f.properties || {};
+        return p.name && p.name !== '南海诸岛' && /^\d{6}$/.test(String(p.adcode || ''));
+      });
+
+      updateStatus(`⏳ 加载 ${provinces.length} 个省级地级数据…`);
+      const results = await Promise.allSettled(
+        provinces.map(p => fetchTopoJSON(atlasUrl(p.properties.adcode, 'province')))
+      );
+
+      const features = [];
+      results.forEach((r, i) => {
+        const prov = provinces[i];
+        const provName = prov.properties.name;
+
+        if (r.status !== 'fulfilled' || !r.value) {
+          features.push(JSON.parse(JSON.stringify(prov)));
+          return;
+        }
+
+        try {
+          const cityGeo = topoToGeo(r.value, 'default');
+          let added = 0;
+          cityGeo.features.forEach(f => {
+            const n = f.properties.name;
+            if (!n || n === '南海诸岛') return;
+            const copy = JSON.parse(JSON.stringify(f));
+            copy.properties.level = 'city';
+            if (!/^\d{6}$/.test(copy.properties.adcode)) {
+              copy.properties.adcode = String(copy.properties.adcode || '').padStart(6, '0');
+            }
+            features.push(copy);
+            added++;
+          });
+          if (added === 0) features.push(JSON.parse(JSON.stringify(prov)));
+        } catch (e) {
+          console.warn(`解析 ${provName} 地级数据失败:`, e);
+          features.push(JSON.parse(JSON.stringify(prov)));
+        }
+      });
+
+      if (!features.length) throw new Error('地级数据为空');
+      return { type: 'FeatureCollection', features };
+    }
+
+    // ============================================================
+    // 4. 缓存管理
+    // ============================================================
+    async function cacheAllData() {
+      if (caching) { updateStatus('⏳ 正在缓存中，请稍候…'); return; }
+      caching = true;
+      const btn = document.getElementById('btn-cache-all');
+      btn.disabled = true;
+      btn.textContent = '⏳ 缓存中…';
+
+      try {
+        updateStatus('⏳ 缓存全国索引…');
+        const rootUrl = atlasUrl(CHINA_ROOT_FILE, 'country');
+        const rootTopo = await fetchTopoJSON(rootUrl);
+        await dbPut(rootUrl, rootTopo);
+
+        const provGeo = topoToGeo(rootTopo, 'default');
+        const provinces = provGeo.features.filter(f => {
+          const p = f.properties || {};
+          return p.name && p.name !== '南海诸岛' && /^\d{6}$/.test(String(p.adcode || ''));
+        });
+
+        let done = 0;
+        const total = provinces.length;
+
+        for (const p of provinces) {
+          const provName = p.properties.name;
+          const adcode = p.properties.adcode;
+          const url = atlasUrl(adcode, 'province');
+
+          updateStatus(`⏳ 缓存省级数据 (${++done}/${total})：${provName}`);
+          btn.textContent = `⏳ ${done}/${total}`;
+
+          if (await dbHas(url)) continue;
+          try {
+            const topo = await fetchTopoJSON(url);
+            await dbPut(url, topo);
+          } catch (e) {
+            console.warn(`缓存 ${provName} 失败:`, e);
+          }
+        }
+
+        await refreshCacheBadge();
+        updateStatus(`✅ 数据缓存完成（${total} 个省级）。`);
+      } catch (err) {
+        console.error('缓存失败:', err);
+        updateStatus('❌ 缓存失败：' + (err.message || err));
+      } finally {
+        caching = false;
+        btn.disabled = false;
+        btn.textContent = '📦 缓存全部数据';
+      }
+    }
+
+    async function clearCache() {
+      if (!confirm('确定要清空本地缓存吗？')) return;
+      await dbClear();
+      topoCache.clear();
+      await refreshCacheBadge();
+      updateStatus('🗑️ 本地缓存已清空。');
+    }
+
+    // ============================================================
+    // 5. 导出 / 导入
+    // ============================================================
+    function normalizeAdcode(code) {
+      const s = String(code == null ? '' : code).trim();
+      if (!s) return '';
+      return /^\d+$/.test(s) ? s.padStart(6, '0') : s;
+    }
+
+    function enrichWithMergeInfo(geojson, merges) {
+      return {
+        type: 'FeatureCollection',
+        features: geojson.features.map(f => {
+          const props = Object.assign({}, f.properties);
+          const code = normalizeAdcode(props.adcode);
+          if (code) props.adcode = code;
+          const rec = merges && merges.get ? merges.get(code) : null;
+          if (rec && rec.names && rec.names.length) props.mergedFrom = rec.names.slice();
+          return {
+            type: 'Feature',
+            properties: props,
+            geometry: JSON.parse(JSON.stringify(f.geometry))
+          };
+        })
+      };
+    }
+
+    function mergesToArray(merges) {
+      const out = [];
+      if (!merges || !merges.size) return out;
+      merges.forEach((rec, code) => {
+        out.push({
+          code,
+          names: (rec.names || []).slice(),
+          parts: (rec.parts || []).map(p => ({
+            name: p.name,
+            adcode: p.adcode,
+            isDirect: !!p.isDirect,
+            geometry: p.geometry
+          }))
+        });
+      });
+      return out;
+    }
+
+    function mergesFromArray(arr) {
+      const m = new Map();
+      (arr || []).forEach(rec => {
+        if (!rec || !rec.code) return;
+        m.set(normalizeAdcode(rec.code), { names: rec.names || [], parts: rec.parts || [] });
+      });
+      return m;
+    }
+
+    function cloneFeatures(list) {
+      return (list || []).map(f => ({
+        type: 'Feature',
+        properties: Object.assign({}, f.properties),
+        geometry: JSON.parse(JSON.stringify(f.geometry))
+      }));
+    }
+
+    async function exportCacheToFile() {
+      const btn = document.getElementById('btn-export-cache');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = '⏳ 导出中…';
+      try {
+        const all = await dbGetAll();
+        const out = {};
+        Object.keys(all).forEach(k => { out[k] = all[k]; });
+
+        // 当前编辑结果：省级用“合成后的视图”，保证导出的省界与屏幕一致
+        const levels = {};
+        if (LEVELS.province.editable) {
+          let view = LEVELS.province.editable;
+          try {
+            if (LEVELS.city.editable) view = applyCityLevelSync(LEVELS.province.editable);
+          } catch (e) {
+            console.warn('导出时合成省级视图失败，改用省级记录:', e);
+          }
+          levels.province = {
+            features: cloneFeatures(view.features),
+            merges: mergesToArray(LEVELS.province.merges)
+          };
+        }
+        if (LEVELS.city.editable) {
+          levels.city = {
+            features: cloneFeatures(LEVELS.city.editable.features),
+            merges: mergesToArray(LEVELS.city.merges)
+          };
+        }
+
+        const payload = {
+          type: 'china-map-cache',
+          version: DB_VERSION,
+          source: 'geojson.cn-china-atlas-1.6.3',
+          exportedAt: new Date().toISOString(),
+          level: currentLevel,
+          levels,
+          data: out
+        };
+
+        const text = JSON.stringify(payload);
+        const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        let blob, filename;
+
+        const gzBuf = await gzipText(text);
+        if (gzBuf) {
+          blob = new Blob([gzBuf], { type: 'application/gzip' });
+          filename = `china-map-edited-${ts}.json.gz`;
+        } else {
+          blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+          filename = `china-map-edited-${ts}.json`;
+        }
+
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+        updateStatus(`✅ 已导出「${filename}」（含当前省级/地级修改与合并记录）。`);
+      } catch (err) {
+        console.error('导出失败:', err);
+        updateStatus('❌ 导出失败：' + (err.message || err));
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 导出（含修改）';
+      }
+    }
+
+    async function importCacheFromFile(file) {
+      if (!file) return;
+      const btn = document.getElementById('btn-import-cache');
+      btn.disabled = true; btn.textContent = '⏳ 导入中…';
+      try {
+        const text = await readMaybeGzip(file);
+        const payload = JSON.parse(text);
+        const data = (payload && payload.data) || {};
+        const levels = (payload && payload.levels) || {};
+
+        // 1) 拓扑缓存
+        const entries = {};
+        Object.keys(data).forEach(k => {
+          if (data[k] && typeof data[k] === 'object') entries[k] = data[k];
+        });
+        if (Object.keys(entries).length) await dbPutMany(entries);
+        topoCache.clear();
+
+        // 2) 编辑结果（新格式 levels；兼容旧格式 province_edited / city_edited）
+        const incoming = {
+          province: levels.province || (data.province_edited ? { features: data.province_edited.features } : null),
+          city: levels.city || (data.city_edited ? { features: data.city_edited.features } : null)
+        };
+
+        let restored = 0;
+        ['province', 'city'].forEach(k => {
+          const src = incoming[k];
+          if (!src || !Array.isArray(src.features) || !src.features.length) return;
+          const lv = LEVELS[k];
+          const fc = { type: 'FeatureCollection', features: cloneFeatures(src.features) };
+          lv.editable = fc;
+          if (!lv.original) lv.original = JSON.parse(JSON.stringify(fc));
+          lv.merges = mergesFromArray(src.merges);
+          lv.selected = [];
+          restored++;
+        });
+
+        if (restored) {
+          clearProvinceSyncCache();
+          if (LEVELS.city.editable && currentLevel === 'province') {
+            updateStatus('⏳ 正在按导入的地级数据合成省级区划…');
+            await ensureProvinceOutlines((i, n) => updateStatus(`⏳ 合成省级区划 (${i}/${n})…`));
+          }
+          registerAndRender();
+          renderSelectedList();
+          updateButtons();
+        }
+
+        await refreshCacheBadge();
+        updateStatus(restored
+          ? `✅ 已导入 ${Object.keys(entries).length} 个缓存图层，并还原了 ${restored} 个层级的编辑结果。`
+          : `✅ 已导入 ${Object.keys(entries).length} 个缓存图层。`);
+      } catch (err) {
+        console.error('导入失败:', err);
+        updateStatus('❌ 导入失败：' + (err.message || err));
+      } finally {
+        btn.disabled = false; btn.textContent = '📂 导入（还原修改）';
+        const input = document.getElementById('importFile');
+        if (input) input.value = '';
+      }
+    }
+
+    // ============================================================
+    // 6. 初始化
+    // ============================================================
+    async function init() {
+      try {
+        await ensureDependencies();
+        await refreshCacheBadge();
+        const mapEl = document.getElementById('map');
+        chart = echarts.init(mapEl);
+        bindChartEvents();
+        bindToolbarEvents();
+        // 初始直接进地级图：省级图以后完全由地级合成，不再用下发的那份省界
+        const ok = await switchLevel('city');
+        if (!ok) await switchLevel('province');
+      } catch (err) {
+        console.error('初始化失败:', err);
+        updateStatus('❌ ' + (err.message || '初始化失败'));
+      }
+    }
+
+    // ============================================================
+    // 7. 区划切换
+    // ============================================================
+    async function switchLevel(levelKey) {
+      if (switching || !LEVELS[levelKey]) return false;
+      switching = true;
+      const btnLevel = document.getElementById('btn-level');
+      btnLevel.disabled = true;
+
+      try {
+        const lv = LEVELS[levelKey];
+        currentLevel = levelKey;
+
+        if (!lv.editable) {
+          updateStatus(`⏳ 正在加载${lv.name}区划数据…`);
+          btnLevel.textContent = '⏳ 加载中…';
+          const geo = levelKey === 'province' ? await loadProvinceLevel() : await loadCityLevel();
+          lv.original = JSON.parse(JSON.stringify(geo));
+          lv.editable = JSON.parse(JSON.stringify(geo));
+          lv.merges = new Map(); lv.selected = [];
+        }
+
+        // 省级图完全由地级图合成：先把所有省的轮廓算好（缓存，之后秒开）
+        if (levelKey === 'province' && LEVELS.city.editable) {
+          updateStatus('⏳ 正在用地级数据合成省级区划…');
+          await ensureProvinceOutlines((i, n) => updateStatus(`⏳ 合成省级区划 (${i}/${n})…`));
+        }
+
+        registerAndRender();
+        renderSelectedList();
+        updateButtons();
+        updateStatus(`✅ 已切换到${lv.name}区划（共 ${lv.editable.features.length} 个区域）。`);
+        return true;
+      } catch (err) {
+        console.error('区划切换失败:', err);
+        updateStatus('❌ 数据加载失败：' + (err.message || err));
+        return false;
+      } finally {
+        switching = false;
+        btnLevel.disabled = false;
+        updateLevelButton();
+      }
+    }
+
+    function toggleLevel() { switchLevel(currentLevel === 'province' ? 'city' : 'province'); }
+
+    // 名称允许重复（如北京朝阳区 / 辽宁朝阳市），但 ECharts 的 map 用 name 当区域 id，
+    // 所以渲染时统一换成「名称|编码」这个唯一 key，显示名称仍原样保留。
+    function regionKeyOf(feature) {
+      const p = (feature && feature.properties) || {};
+      return `${p.name || ''}|${normalizeAdcode(p.adcode)}`;
+    }
+
+    function updateLevelButton() {
+      const btn = document.getElementById('btn-level');
+      const map = { province: '🗺️ 切换到地级区划', city: '🗺️ 切换到省级区划' };
+      btn.textContent = map[currentLevel] || '🗺️ 切换区划';
+    }
+
+    // ============================================================
+    // 8. 几何工具
+    // ============================================================
+    function closeRings(coords) {
+      if (!coords || coords.length === 0) return;
+      const first = coords[0], last = coords[coords.length - 1];
+      if (first[0] !== last[0] || first[1] !== last[1]) coords.push([first[0], first[1]]);
+    }
+
+    function normalizeGeometry(geom) {
+      const g = JSON.parse(JSON.stringify(geom));
+      if (g.type === 'Polygon') g.coordinates.forEach(closeRings);
+      else if (g.type === 'MultiPolygon') g.coordinates.forEach(poly => poly.forEach(closeRings));
+      return g;
+    }
+
+    function toTurfFeature(geom) {
+      return { type: 'Feature', properties: {}, geometry: normalizeGeometry(geom) };
+    }
+
+    // 按“米”外扩（正值）或内缩（负值）。不可用 / 失败时返回 null。
+    function bufferByMeters(feature, meters, steps = 8) {
+      if (typeof turf === 'undefined' || typeof turf.buffer !== 'function') return null;
+      try {
+        const out = turf.buffer(feature, meters, { units: 'meters', steps });
+        return out && out.geometry ? out : null;
+      } catch (e) {
+        console.warn('缓冲计算失败:', e);
+        return null;
+      }
+    }
+
+    // 依次 union，任一环失败即返回 null，交给调用方回退。
+    function unionFeatures(features) {
+      if (!features.length) return null;
+      let acc = features[0];
+      for (let i = 1; i < features.length; i++) {
+        const next = turf.union(acc, features[i]);
+        if (!next || !next.geometry) return null;
+        acc = next;
+      }
+      return acc && acc.geometry ? acc : null;
+    }
+
+    // 带「合并距离」的合并：
+    //   1) 先把各面普通 union 成一块；
+    //   2) 整体外扩 MERGE_GAP_METERS 米，让相邻边缘互相咬合、缝隙被焊死；
+    //   3) 再整体内缩同样距离，外轮廓回到真实边界。
+    // 因为 buffer(A∪B) = buffer(A) ∪ buffer(B)，先并后扩比逐面扩再并更省算力。
+    // 任一步不可用/异常时退回普通 union，保证合并始终可用。
+    function mergeGeometriesWithGapClosure(geometries) {
+      const geoms = (geometries || []).filter(Boolean);
+      if (!geoms.length) return null;
+      if (geoms.length === 1) return normalizeGeometry(geoms[0]);
+      if (typeof turf === 'undefined' || typeof turf.union !== 'function') return null;
+
+      const base = geoms.map(toTurfFeature);
+      const gap = MERGE_GAP_METERS;
+
+      // 1) 普通合并（无合并距离）：既是回退方案，也是面积校验的基线
+      let merged = null;
+      try {
+        const u = unionFeatures(base);
+        merged = u && u.geometry ? u.geometry : null;
+      } catch (e) {
+        console.warn('普通合并失败:', e);
+      }
+      if (!merged) return null;
+      if (!(gap > 0)) return merged;
+
+      const plainFeature = { type: 'Feature', properties: {}, geometry: merged };
+
+      // 2) 外扩：把 1~2 米级的缝隙“焊”在一起
+      const dilated = bufferByMeters(plainFeature, gap);
+      if (!dilated) return merged;
+
+      // 3) 内缩：把外轮廓还原到真实边界（此时内部缝隙已经消失）
+      const shrunk = bufferByMeters(dilated, -gap);
+      if (!shrunk || !shrunk.geometry) return merged;
+
+      // 安全阀：细长要素（如十段线）会在“缩回”时被缩没，
+      // 面积一旦与普通合并相差超过 0.1%，就退回普通合并，避免吃几何。
+      try {
+        const ref = turf.area(plainFeature);
+        const got = turf.area(shrunk);
+        if (!(ref > 0) || got < ref * 0.999 || got > ref * 1.001) {
+          console.warn(`合并距离回缩异常：${(got / 1e6).toFixed(2)} vs ${(ref / 1e6).toFixed(2)} km²，已退回普通合并`);
+          return merged;
+        }
+      } catch (e) {
+        return merged;
+      }
+
+      return shrunk.geometry;
+    }
+
+    // 地级编辑 → 省级视图同步
+    // 地级合并 / 改名 / 改代码 / 分离 / 设为直辖市后，把受影响的省标记为“脏”，
+    // 切到省级视图时用【当前地级要素】重建该省轮廓（同样带 2 米合并距离）；
+    // 直辖市则作为独立的省级区域出现在省级视图里。
+    // 省级图 = 地级图按前两位编码合并的结果（不再使用下发数据的省界）。
+    // 未改动过的省会把结果缓存起来，只有编码/几何被改动时才重算。
+    const rebuiltProvinces = new Map();  // 省 adcode → { geom } | null（null 表示该省没有地级数据）
+    const editedProvinces = new Set();   // 地级被改动过的省：重算时要套用 2 米合并距离
+
+    // 两两配对合并，比逐个累加快一倍左右，且不依赖合并顺序
+    function balancedUnion(turfFeatures) {
+      if (!turfFeatures.length) return null;
+      let level = turfFeatures.slice();
+      while (level.length > 1) {
+        const next = [];
+        for (let i = 0; i < level.length; i += 2) {
+          if (i + 1 >= level.length) { next.push(level[i]); continue; }
+          let u = null;
+          try { u = turf.union(level[i], level[i + 1]); } catch (e) { u = null; }
+          next.push(u && u.geometry ? u : level[i]);
+        }
+        level = next;
+      }
+      return level[0];
+    }
+
+    // 地级之间的细小裂缝在合成省级后会变成“省内的洞”。
+    // 这里把细长的内环填掉（宽度 < 1km 视为缝），真正的飞地 / 大洞保留。
+    function fillThinHoles(geom, maxWidthKm = 1) {
+      if (!geom) return geom;
+      const keepRing = (ring) => {
+        try {
+          const area = Math.abs(turf.area({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } })) / 1e6;
+          if (!(area > 0)) return false;
+          const len = turf.length(turf.lineString(ring), { units: 'kilometers' });
+          if (!(len > 0)) return true;
+          return (2 * area / len) >= maxWidthKm;   // 平均宽度够大 → 当真实洞保留
+        } catch (e) {
+          return true;
+        }
+      };
+      const filterPoly = (poly) => [poly[0], ...poly.slice(1).filter(keepRing)];
+      const out = JSON.parse(JSON.stringify(geom));
+      if (out.type === 'Polygon') out.coordinates = filterPoly(out.coordinates);
+      else if (out.type === 'MultiPolygon') out.coordinates = out.coordinates.map(filterPoly);
+      return out;
+    }
+
+    // 几何的「闭运算」：外扩 gap 米再缩回，用于焊死 1~2 米级的缝隙
+    function closeGeometry(geom, gap = MERGE_GAP_METERS) {
+      const f = { type: 'Feature', properties: {}, geometry: geom };
+      const dilated = bufferByMeters(f, gap, 4);
+      if (!dilated) return null;
+      const shrunk = bufferByMeters(dilated, -gap, 4);
+      return shrunk && shrunk.geometry ? shrunk.geometry : null;
+    }
+
+    function provinceKeyOf(adcode) {
+      const c = normalizeAdcode(adcode);
+      return /^\d{6}$/.test(c) ? c.slice(0, 2) + '0000' : '';
+    }
+
+    // 某个地级要素（或代码）发生变化，丢弃所属省的缓存并标记为“改动过”
+    function markProvinceDirty(adcode) {
+      const key = provinceKeyOf(adcode);
+      if (!key) return;
+      rebuiltProvinces.delete(key);
+      editedProvinces.add(key);
+    }
+
+    function clearProvinceSyncCache() {
+      rebuiltProvinces.clear();
+      editedProvinces.clear();
+    }
+
+    // 省轮廓 = 该省当前所有地级要素（不含直辖市）的并集；返回 null 表示该省没有地级数据
+    function rebuildProvinceOutline(provinceKey) {
+      if (!provinceKey) return null;
+      if (rebuiltProvinces.has(provinceKey)) return rebuiltProvinces.get(provinceKey);
+
+      const cityLv = LEVELS.city;
+      if (!cityLv || !cityLv.editable || !Array.isArray(cityLv.editable.features)) return null;
+
+      const prefix = provinceKey.slice(0, 2);
+      const geoms = [];
+      let sawAny = false;
+
+      cityLv.editable.features.forEach(f => {
+        if (!f || !f.properties) return;
+        const ac = normalizeAdcode(f.properties.adcode);
+        if (!/^\d{6}$/.test(ac) || ac.slice(0, 2) !== prefix) return;
+        sawAny = true;
+        if (f.properties.isDirect) return;          // 直辖市单独成区，不计入省轮廓
+        if (f.properties.level === 'province') return;
+        if (!f.geometry) return;
+        geoms.push(f.geometry);
+      });
+
+      if (!sawAny) return null;
+
+      let geom = null;
+      if (geoms.length === 1) geom = normalizeGeometry(geoms[0]);
+      else if (geoms.length > 1) {
+        try {
+          const u = balancedUnion(geoms.map(toTurfFeature));
+          geom = u && u.geometry ? u.geometry : null;
+        } catch (e) {
+          console.warn('合成省轮廓失败:', e);
+          geom = null;
+        }
+      }
+
+      if (geom) {
+        // 被地级编辑动过的省：地级几何已经过 2 米合并，这里再套一层合并距离
+        if (editedProvinces.has(provinceKey)) {
+          const closed = closeGeometry(geom, MERGE_GAP_METERS);
+          if (closed) geom = closed;
+        }
+        // 无论如何都要把地级之间的细缝填掉，否则省级图上会出现白色裂纹
+        geom = fillThinHoles(geom);
+      }
+
+      const result = { geom };
+      rebuiltProvinces.set(provinceKey, result);
+      return result;
+    }
+
+    // 预先算好所有省的轮廓（分段 await，避免整段卡死）
+    async function ensureProvinceOutlines(onProgress) {
+      const cityLv = LEVELS.city;
+      if (!cityLv || !cityLv.editable || !cityLv.editable.features.length) return;
+      const keys = new Set();
+      cityLv.editable.features.forEach(f => {
+        const ac = normalizeAdcode(f.properties && f.properties.adcode);
+        if (/^\d{6}$/.test(ac)) keys.add(provinceKeyOf(ac));
+      });
+      const todo = [...keys].filter(k => !rebuiltProvinces.has(k));
+      for (let i = 0; i < todo.length; i++) {
+        rebuildProvinceOutline(todo[i]);
+        if (onProgress) onProgress(i + 1, todo.length);
+        if (i % 3 === 2) await new Promise(r => setTimeout(r, 0));
+      }
+    }
+
+    // 省级视图：完全由地级要素合成
+    function applyCityLevelSync(provinceGeo) {
+      const cityLv = LEVELS.city;
+      if (!cityLv || !cityLv.editable || !cityLv.editable.features.length) return provinceGeo;
+
+      const groups = new Map();   // 前两位 → 该省的地级要素
+      const promoted = [];        // 直辖市
+
+      cityLv.editable.features.forEach(f => {
+        if (!f || !f.properties) return;
+        const ac = normalizeAdcode(f.properties.adcode);
+        if (!/^\d{6}$/.test(ac)) return;
+        if (f.properties.isDirect || f.properties.level === 'province') { promoted.push(f); return; }
+        const prefix = ac.slice(0, 2);
+        if (!groups.has(prefix)) groups.set(prefix, []);
+        groups.get(prefix).push(f);
+      });
+
+      const baseOf = (code) => {
+        const list = [
+          ...(provinceGeo.features || []),
+          ...((LEVELS.province.original && LEVELS.province.original.features) || [])
+        ];
+        return list.find(f => f.properties && provinceKeyOf(f.properties.adcode) === code) || null;
+      };
+
+      const features = [];
+      for (const prefix of [...groups.keys()].sort()) {
+        const code = prefix + '0000';
+        const rebuilt = rebuildProvinceOutline(code);
+        if (!rebuilt || !rebuilt.geom) continue;
+        const base = baseOf(code);
+        features.push({
+          type: 'Feature',
+          properties: {
+            name: (base && base.properties.name) || `省份-${prefix}`,
+            adcode: code,
+            derived: true
+          },
+          geometry: JSON.parse(JSON.stringify(rebuilt.geom))
+        });
+      }
+
+      promoted.forEach(f => {
+        const ac = normalizeAdcode(f.properties.adcode);
+        features.push({
+          type: 'Feature',
+          properties: { name: f.properties.name || ac, adcode: ac, isDirect: true, derived: true },
+          geometry: JSON.parse(JSON.stringify(f.geometry))
+        });
+      });
+
+      return { type: 'FeatureCollection', features };
+    }
+
+    // ============================================================
+    // 9. 渲染
+    // ============================================================
+    function getCurrentView() {
+      if (!chart) return null;
+      try {
+        const opt = chart.getOption();
+        const s = opt && opt.series && opt.series[0];
+        if (!s) return null;
+        const zoom = (typeof s.zoom === 'number') ? s.zoom : undefined;
+        const center = Array.isArray(s.center) ? s.center.slice() : undefined;
+        return { zoom, center };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function registerAndRender(opts = {}) {
+      const lv = S();
+      const isProvince = currentLevel === 'province';
+      const view = opts.preserveView ? getCurrentView() : null;
+
+      let mapGeo = lv.editable;
+      // 省级视图 = 地级视图按前两位编码合并的结果，只要地级数据在就一直走这条路径
+      const hasCityData = !!(LEVELS.city.editable && LEVELS.city.editable.features.length);
+      const needSync = isProvince && typeof turf !== 'undefined' && hasCityData;
+      if (needSync) {
+        try { mapGeo = applyCityLevelSync(lv.editable); }
+        catch (e) { console.warn('省级视图同步失败:', e); mapGeo = lv.editable; }
+      }
+
+      const cleanFeatures = (mapGeo.features || []).filter(f =>
+        f && f.properties && typeof f.properties.name === 'string' && f.properties.name && f.geometry
+      );
+
+      // 名称允许重复，渲染时把 name 换成「名称|编码」的唯一 key，显示名另存 dispName
+      const dispByKey = new Map();
+      const rendered = cleanFeatures.map(f => {
+        const props = Object.assign({}, f.properties);
+        props.dispName = f.properties.name;
+        props.name = regionKeyOf(f);
+        dispByKey.set(props.name, props.dispName);
+        return { type: 'Feature', properties: props, geometry: f.geometry };
+      });
+      mapGeo = { type: 'FeatureCollection', features: rendered };
+
+      echarts.registerMap('editableChina', mapGeo);
+
+      const seriesData = rendered.map(f => {
+        const item = { name: f.properties.name, value: 1 };
+        return item;
+      });
+
+      chart.setOption({
+        tooltip: {
+          trigger: 'item',
+          formatter: (params) => {
+            if (params.seriesType !== 'map') return '';
+            const key = params.name;
+            const feat = rendered.find(f => f.properties.name === key);
+            if (!feat) return String(key);
+            const disp = feat.properties.dispName || String(key);
+            const code = normalizeAdcode(feat.properties.adcode);
+            const rec = code ? lv.merges.get(code) : null;
+            const codeLine = code ? `<br/>区划代码：${code}` : '';
+            const directLine = feat.properties.isDirect ? '<br/><i style="color:#b06000">直辖市</i>' : '';
+            if (rec && rec.names && rec.names.length) {
+              return `<b>${disp}</b>${codeLine}<br/>包含：${rec.names.join('、')}${directLine}`;
+            }
+            return disp + codeLine + directLine;
+          }
+        },
+        series: [{
+          type: 'map',
+          map: 'editableChina',
+          roam: true,
+          zoom: view && typeof view.zoom === 'number' ? view.zoom : 1.2,
+          center: view && Array.isArray(view.center) ? view.center : [104, 36],
+          label: {
+            show: isProvince,
+            fontSize: 9,
+            color: '#333',
+            formatter: (params) => {
+              const name = dispByKey.get(params.name) || String(params.name);
+              return name.length > 6 ? name.slice(0, 5) + '…' : name;
+            }
+          },
+          emphasis: {
+            label: { show: true, fontSize: 10, fontWeight: 'bold' },
+            itemStyle: { areaColor: '#e8f0fe' }
+          },
+          select: {
+            label: { show: true, fontSize: 10 },
+            itemStyle: { areaColor: '#d2e3fc' }
+          },
+          data: seriesData,
+          selectedMode: 'multiple',
+          itemStyle: {
+            areaColor: '#f5f5f5',
+            borderColor: '#d0d0d0',
+            borderWidth: isProvince ? 0.8 : 0.5
+          }
+        }]
+      }, { notMerge: true });
+
+      if (lv.selected.length > 0) {
+        // selected 里存的是编码，回显选中态要用渲染 key
+        const keys = lv.selected
+          .map(c => rendered.find(f => normalizeAdcode(f.properties.adcode) === c))
+          .filter(Boolean)
+          .map(f => f.properties.name);
+        if (keys.length) chart.dispatchAction({ type: 'select', seriesIndex: 0, name: keys });
+      }
+    }
+
+    function bindChartEvents() {
+      chart.on('click', (params) => {
+        if (params.componentType !== 'series') return;
+        // 渲染 key 是「名称|编码」，直接取编码
+        const key = String(params.name || '');
+        const code = key.slice(key.lastIndexOf('|') + 1);
+        if (code) toggleSelection(code);
+      });
+    }
+
+    // ============================================================
+    // 10. 标识与选中 —— 一切以行政编码为准，名称只用于显示
+    // ============================================================
+    function codeOf(feature) {
+      return normalizeAdcode(feature && feature.properties && feature.properties.adcode);
+    }
+
+    function findByCode(lv, code) {
+      const c = normalizeAdcode(code);
+      if (!c) return null;
+      return (lv.editable.features || []).find(f => codeOf(f) === c) || null;
+    }
+
+    function featureByName(lv, name) {
+      return (lv.editable.features || []).find(f => f.properties && f.properties.name === name) || null;
+    }
+
+    // 同级编码：省级看前 2 位，地级看前 4 位（后两位是县级，不参与本级判断）
+    function levelKeyOf(code, level) {
+      const c = normalizeAdcode(code);
+      if (!/^\d{6}$/.test(c)) return c;
+      return level === 'province' ? c.slice(0, 2) : c.slice(0, 4);
+    }
+
+    function selectedFeatures(lv) {
+      return (lv.selected || []).map(c => findByCode(lv, c)).filter(Boolean);
+    }
+
+    function toggleSelection(code) {
+      const lv = S();
+      const c = normalizeAdcode(code);
+      const feat = findByCode(lv, c);
+      if (!feat) return;
+      const key = regionKeyOf(feat);
+      const idx = lv.selected.indexOf(c);
+      if (idx >= 0) {
+        lv.selected.splice(idx, 1);
+        chart.dispatchAction({ type: 'unselect', seriesIndex: 0, name: key });
+      } else {
+        lv.selected.push(c);
+        chart.dispatchAction({ type: 'select', seriesIndex: 0, name: key });
+      }
+      renderSelectedList();
+      updateButtons();
+    }
+
+    function renderSelectedList() {
+      const container = document.getElementById('selectedList');
+      const lv = S();
+      const feats = selectedFeatures(lv);
+
+      if (!feats.length) {
+        container.innerHTML = '<div class="empty">未选中任何区域</div>';
+        updateCodeOutput();
+        return;
+      }
+
+      container.innerHTML = feats.map(f => {
+        const code = codeOf(f);
+        const isMerged = lv.merges.has(code);
+        const isDirect = !!f.properties.isDirect;
+        let cls = '';
+        if (isMerged) cls += ' merged';
+        if (isDirect) cls += ' direct';
+        const prefix = isMerged ? '🔗 ' : (isDirect ? '⭐ ' : '');
+        const name = f.properties.name || code;
+        return `<span class="selected-tag${cls}" title="区划代码 ${code}">${prefix}${name}<span class="tag-code">${code}</span><span class="remove" data-code="${code}">×</span></span>`;
+      }).join('');
+
+      container.querySelectorAll('.remove').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleSelection(el.dataset.code);
+        });
+      });
+
+      updateCodeOutput();
+    }
+
+    function updateButtons() {
+      const lv = S();
+      const sel = selectedFeatures(lv);
+
+      document.getElementById('btn-merge').disabled = sel.length < 2;
+      document.getElementById('btn-rename').disabled = sel.length !== 1;
+      document.getElementById('btn-edit-code').disabled = sel.length === 0;
+      document.getElementById('btn-separate').disabled = !sel.some(f => lv.merges.has(codeOf(f)));
+
+      const btnDirect = document.getElementById('btn-direct');
+      const canDirect = currentLevel === 'city' && sel.length > 0;
+      btnDirect.disabled = !canDirect;
+      if (!canDirect) {
+        btnDirect.textContent = '⬆️ 设为直辖市';
+      } else {
+        const allDirect = sel.every(f => f.properties.isDirect === true);
+        btnDirect.textContent = allDirect ? '⬇️ 取消直辖' : '⬆️ 设为直辖市';
+      }
+    }
+
+    // ============================================================
+    // 11. 合并 —— 合并 = 把同级编码改成同一个值（没有单独的合并按钮）
+    // ============================================================
+    function combineGeometries(feats) {
+      try {
+        const g = mergeGeometriesWithGapClosure(feats.map(f => f.geometry));
+        if (g) return g;
+      } catch (e) {
+        console.warn('合并几何失败，回退到直接拼接:', e);
+      }
+      return {
+        type: 'MultiPolygon',
+        coordinates: feats.flatMap(f => {
+          if (!f.geometry) return [];
+          if (f.geometry.type === 'Polygon') return [f.geometry.coordinates];
+          if (f.geometry.type === 'MultiPolygon') return f.geometry.coordinates;
+          return [];
+        })
+      };
+    }
+
+    // 把「同级编码相同」的区域并成一个；成员快照存进 lv.merges，供「分离」还原
+    // snapshots: 可选 Map<feature, {name, adcode, isDirect, geometry}>，
+    // 用于记录“改编码之前”的原始信息（否则分离后所有成员都会是同一个新编码）
+    function mergeSameCode(candidates, snapshots) {
+      const lv = S();
+      const groups = new Map();
+      candidates.forEach(f => {
+        if (!f) return;
+        const key = levelKeyOf(codeOf(f), currentLevel);
+        if (!groups.has(key)) groups.set(key, []);
+        if (!groups.get(key).includes(f)) groups.get(key).push(f);
+      });
+
+      let mergedCount = 0;
+      for (const feats of groups.values()) {
+        if (feats.length < 2) continue;
+
+        const keep = feats[0];
+        const keepCode = codeOf(keep);
+        const keepName = keep.properties.name || keepCode;
+
+        // 摊平成员：已经是合并区的按成员展开，否则用改编码前的快照
+        const usedRecs = new Set();
+        const parts = [];
+        feats.forEach(f => {
+          const code = codeOf(f);
+          const rec = lv.merges.get(code);
+          if (rec && !usedRecs.has(rec)) {
+            usedRecs.add(rec);
+            rec.parts.forEach(p => parts.push(p));
+            lv.merges.delete(code);
+            return;
+          }
+          const snap = snapshots && snapshots.get(f);
+          parts.push(snap ? JSON.parse(JSON.stringify(snap)) : {
+            name: f.properties.name || code,
+            adcode: code,
+            isDirect: !!f.properties.isDirect,
+            geometry: JSON.parse(JSON.stringify(f.geometry))
+          });
+        });
+
+        const geometry = combineGeometries(feats);
+        const hasDirect = parts.some(p => p.isDirect);
+
+        lv.editable.features = lv.editable.features.filter(f => !feats.includes(f));
+        const mergedFeature = { type: 'Feature', properties: { name: keepName, adcode: keepCode }, geometry };
+        if (hasDirect) {
+          mergedFeature.properties.isDirect = true;
+          mergedFeature.properties.level = 'province';
+        }
+        lv.editable.features.push(mergedFeature);
+        lv.merges.set(keepCode, { names: parts.map(p => p.name), parts });
+        mergedCount++;
+      }
+      return mergedCount;
+    }
+
+    // ============================================================
+    // 12. 重命名（只改显示名称）
+    // ============================================================
+    function renameSelected() {
+      const lv = S();
+      if (lv.selected.length !== 1) { updateStatus('⚠️ 请先选中一个区域。'); return; }
+      const code = normalizeAdcode(lv.selected[0]);
+      const feat = findByCode(lv, code);
+      if (!feat) { updateStatus('⚠️ 未找到该编码对应的区域。'); return; }
+
+      const oldName = feat.properties.name || code;
+      const input = prompt(`请输入「${oldName}」（代码 ${code}）的新名称：`, oldName);
+      if (input === null) return;
+      const newName = input.trim();
+      if (!newName) { updateStatus('⚠️ 名称不能为空。'); return; }
+      if (newName === oldName) return;
+
+      // 名称允许重复，不做去重
+      feat.properties.name = newName;
+
+      registerAndRender({ preserveView: true });
+      renderSelectedList();
+      updateButtons();
+      updateStatus(`✏️ 代码 ${code} 的显示名称已改为「${newName}」（不影响区划逻辑）。`);
+    }
+
+    // ============================================================
+    // 13. 修改区划代码 —— 多选时写入同一个代码即合并
+    // ============================================================
+    // 省级只改前两位：省自身 + 下属全部地级的编码一起变；
+    // 任何一处与已有区域撞码就弹提醒并放弃整次修改。
+    // 把这些省的地级改成 newPrefix 后，是否与其它地级的「同级编码」重复
+    function provinceMoveConflicts(provinces, newPrefix) {
+      const cityLv = LEVELS.city;
+      if (!cityLv || !cityLv.editable) return [];
+      const movingPrefixes = new Set(provinces.map(p => codeOf(p).slice(0, 2)));
+      const movingSet = new Set(cityLv.editable.features.filter(f => movingPrefixes.has(codeOf(f).slice(0, 2))));
+      const usedKeys = new Map();
+      cityLv.editable.features.forEach(f => {
+        if (movingSet.has(f)) return;
+        const c = codeOf(f);
+        if (!/^\d{6}$/.test(c)) return;
+        const k = levelKeyOf(c, 'city');
+        if (!usedKeys.has(k)) usedKeys.set(k, f);
+      });
+      const out = [];
+      movingSet.forEach(m => {
+        const nc = newPrefix + codeOf(m).slice(2);
+        const k = levelKeyOf(nc, 'city');
+        const other = usedKeys.get(k);
+        if (other) out.push(`${nc}（与「${other.properties.name}」的 ${k} 段相同）`);
+      });
+      return out;
+    }
+
+    function changeProvincePrefix() {
+      const lv = LEVELS.province;
+      if (lv.selected.length !== 1) { updateStatus('⚠️ 请先选中一个省。'); return; }
+
+      const code = normalizeAdcode(lv.selected[0]);
+      const feat = findByCode(lv, code);
+      if (!feat) { updateStatus('⚠️ 未找到该编码对应的省。'); return; }
+
+      const cityLv = LEVELS.city;
+      if (!cityLv || !cityLv.editable || !cityLv.editable.features.length) {
+        updateStatus('⚠️ 请先切换到「地级区划」加载地级数据，再修改省级编码。');
+        return;
+      }
+
+      const oldPrefix = code.slice(0, 2);
+      const input = prompt(`修改「${feat.properties.name}」的省级编码：只改前两位（当前 ${oldPrefix}）`, oldPrefix);
+      if (input === null) return;
+      const raw = String(input).trim();
+      if (!/^\d{1,2}$/.test(raw)) {
+        alert(`「${raw}」不是 1~2 位数字。省级编码只能修改前两位。`);
+        updateStatus(`⚠️ 「${raw}」不是 1~2 位数字，未做修改。`);
+        return;
+      }
+      const newPrefix = raw.padStart(2, '0');
+      if (newPrefix === oldPrefix) return;
+      const newCode = newPrefix + '0000';
+
+      // 同级编码相同 = 同一区划：改成已有省份的前两位就是「和它合并」，
+      // 唯一要拦的是下属地级改完后与已有地级撞码（同级编码按前 4 位算）。
+      const movers = cityLv.editable.features.filter(f => codeOf(f).slice(0, 2) === oldPrefix);
+      const conflicts = provinceMoveConflicts([feat], newPrefix);
+
+      if (conflicts.length) {
+        const list = conflicts.slice(0, 5).join('、') + (conflicts.length > 5 ? ` 等 ${conflicts.length} 项` : '');
+        alert(`冲突：下属地级改成前两位 ${newPrefix} 后，同级编码与已有地级重复：\n${list}\n\n本次修改已取消。`);
+        updateStatus(`⛔ 地级同级编码冲突：${list}，未做修改。`);
+        return;
+      }
+
+      // 执行：省 + 下属地级一起改前两位
+      feat.properties.adcode = newCode;
+      const origProv = lv.original.features.find(f => codeOf(f) === code);
+      if (origProv) origProv.properties.adcode = newCode;
+
+      const rewrite = (g) => {
+        if (!g || !Array.isArray(g.features)) return;
+        g.features.forEach(f => {
+          if (!f || !f.properties) return;
+          const c = codeOf(f);
+          if (/^\d{6}$/.test(c) && c.slice(0, 2) === oldPrefix) f.properties.adcode = newPrefix + c.slice(2);
+        });
+      };
+      rewrite(cityLv.editable);
+      rewrite(cityLv.original);
+
+      // 合并记录（按 adcode 存）跟着换 key
+      [lv, cityLv].forEach(level => {
+        if (!level.merges || !level.merges.size) return;
+        const next = new Map();
+        level.merges.forEach((rec, k) => {
+          const c = normalizeAdcode(k);
+          next.set(/^\d{6}$/.test(c) && c.slice(0, 2) === oldPrefix ? newPrefix + c.slice(2) : k, rec);
+        });
+        level.merges = next;
+      });
+
+      markProvinceDirty(oldPrefix + '0000');   // 旧省位（已空）
+      markProvinceDirty(newCode);
+
+      // 同码 = 同一省：并入已存在的那条省级记录，别留两条同编码的省
+      const absorbed = lv.editable.features.find(f => f !== feat && codeOf(f) === newCode);
+      let mergedInto = '';
+      if (absorbed) {
+        mergedInto = absorbed.properties.name;
+        const parts = [];
+        const prev = lv.merges.get(newCode);
+        if (prev && prev.parts) prev.parts.forEach(p => parts.push(p));
+        parts.push({ name: absorbed.properties.name, adcode: newCode, geometry: JSON.parse(JSON.stringify(absorbed.geometry)) });
+        parts.push({ name: feat.properties.name, adcode: code, geometry: JSON.parse(JSON.stringify(feat.geometry)) });
+        lv.editable.features = lv.editable.features.filter(f => f !== feat);
+        lv.merges.set(newCode, { names: parts.map(p => p.name), parts });
+      }
+
+      lv.selected = [newCode];
+      registerAndRender({ preserveView: true });
+      renderSelectedList();
+      updateButtons();
+      updateCodeOutput();
+      updateStatus(mergedInto
+        ? `🔢 省级编码 ${oldPrefix}→${newPrefix}：已并入「${mergedInto}」，下属 ${movers.length} 个地级区划同步改前两位。`
+        : `🔢 省级编码 ${oldPrefix}→${newPrefix}，下属 ${movers.length} 个地级区划已同步改前两位。`);
+    }
+
+    function propagateProvinceCodeChange(oldCode, newCode) {
+      const oldPrefix = oldCode.slice(0, 2);
+      const newPrefix = newCode.slice(0, 2);
+      if (oldPrefix === newPrefix) return;
+
+      const cityLv = LEVELS.city;
+      if (cityLv && cityLv.original) {
+        [cityLv.original, cityLv.editable].forEach(g => {
+          if (!g || !Array.isArray(g.features)) return;
+          g.features.forEach(f => {
+            if (f && f.properties && f.properties.adcode) {
+              const c = normalizeAdcode(f.properties.adcode);
+              if (c.slice(0, 2) === oldPrefix) f.properties.adcode = newPrefix + c.slice(2);
+            }
+          });
+        });
+      }
+
+      // 下属地级代码变了，省级重建缓存要失效
+      markProvinceDirty(oldCode);
+      markProvinceDirty(newCode);
+    }
+
+    // 把 feats 的编码统一写成 newCode，并把同级编码相同的合并；返回合并出的组数
+    function writeCodeAndMerge(feats, newCode) {
+      const lv = S();
+      const oldCodes = feats.map(codeOf);
+
+      // 记录改编码前的原始信息，供合并 / 分离还原
+      const snapshots = new Map();
+      feats.forEach(f => {
+        snapshots.set(f, {
+          name: f.properties.name || codeOf(f),
+          adcode: codeOf(f),
+          isDirect: !!f.properties.isDirect,
+          geometry: JSON.parse(JSON.stringify(f.geometry))
+        });
+      });
+
+      // 省级换前两位 → 下属地级前两位同步
+      if (currentLevel === 'province' && /^\d{6}$/.test(newCode)) {
+        oldCodes.forEach(oc => {
+          if (/^\d{6}$/.test(oc) && oc.slice(0, 2) !== newCode.slice(0, 2)) {
+            propagateProvinceCodeChange(oc, newCode);
+          }
+        });
+      }
+
+      // 写代码；合并区记录跟着编码搬家
+      feats.forEach(f => {
+        const oldCode = codeOf(f);
+        f.properties = f.properties || {};
+        f.properties.adcode = newCode;
+        if (oldCode !== newCode && lv.merges.has(oldCode)) {
+          const rec = lv.merges.get(oldCode);
+          lv.merges.delete(oldCode);
+          lv.merges.set(newCode, rec);
+        }
+      });
+
+      // 同级编码相同 → 合并；同时把“本来就已是这个编码”的其他区域并进来，
+      // 避免出现两个同编码区域（编码必须唯一）。已有该编码的区域排在前面，
+      // 合并后沿用它的显示名称。
+      const owners = (lv.editable.features || []).filter(f => !feats.includes(f) && codeOf(f) === newCode);
+      const candidates = [...owners, ...feats];
+      const mergedGroups = mergeSameCode(candidates, snapshots);
+
+      // 地级改动 → 省级视图重建
+      if (currentLevel === 'city') {
+        oldCodes.forEach(c => markProvinceDirty(c));
+        markProvinceDirty(newCode);
+      }
+      return mergedGroups;
+    }
+
+    // 合并按钮：把所有选中区域的编码改成「第一个选中区域」的编码
+    function mergeSelected() {
+      const lv = S();
+      const feats = selectedFeatures(lv);
+      if (feats.length < 2) { updateStatus('⚠️ 请至少选中两个区域再合并。'); return; }
+
+      const targetCode = codeOf(feats[0]);
+      if (!targetCode) {
+        updateStatus('⚠️ 第一个选中区域没有行政编码，无法作为合并后的编码。');
+        return;
+      }
+
+      // 省级合并时，其它省的地级要跟着改前两位，先查地级同级编码冲突
+      if (currentLevel === 'province') {
+        const others = feats.slice(1);
+        const newPrefix = targetCode.slice(0, 2);
+        const conflicts = provinceMoveConflicts(others, newPrefix);
+        if (conflicts.length) {
+          const list = conflicts.slice(0, 5).join('、') + (conflicts.length > 5 ? ` 等 ${conflicts.length} 项` : '');
+          alert(`冲突：并入「${feats[0].properties.name}」时，下属地级同级编码重复：\n${list}\n\n本次合并已取消。`);
+          updateStatus(`⛔ 地级同级编码冲突：${list}，未合并。`);
+          return;
+        }
+      }
+
+      const mergedGroups = writeCodeAndMerge(feats, targetCode);
+
+      lv.selected = findByCode(lv, targetCode) ? [targetCode] : [];
+      registerAndRender({ preserveView: true });
+      renderSelectedList();
+      updateButtons();
+      updateCodeOutput();
+
+      const name = (findByCode(lv, targetCode) || {}).properties;
+      updateStatus(`🔗 已把 ${feats.length} 个区域的编码统一为 ${targetCode}${name ? `（${name.name}）` : ''}${mergedGroups ? '，已合并为同一区划' : ''}。`);
+    }
+
+    function editCodeSelected() {
+      const lv = S();
+      if (currentLevel === 'province') { changeProvincePrefix(); return; }
+      const feats = selectedFeatures(lv);
+      if (!feats.length) { updateStatus('⚠️ 请先选中至少一个区域。'); return; }
+
+      const single = feats.length === 1;
+      const currentCode = single ? codeOf(feats[0]) : '';
+      const tip = single
+        ? `请输入「${feats[0].properties.name}」的新区划代码（纯数字会自动补足 6 位）：`
+        : `将把选中的 ${feats.length} 个区域写成同一个区划代码；同级编码一致即视为同一区划并合并：`;
+
+      const input = prompt(tip, currentCode);
+      if (input === null) return;
+      const newCode = normalizeAdcode(String(input).trim());
+      if (!newCode) { updateStatus('⚠️ 区划代码不能为空。'); return; }
+      if (single && newCode === currentCode) return;
+      if (!/^\d{6}$/.test(newCode)) {
+        if (!confirm(`「${newCode}」不是 6 位数字，按编码分组时可能异常。仍要使用吗？`)) return;
+      }
+
+      const mergedGroups = writeCodeAndMerge(feats, newCode);
+
+      lv.selected = findByCode(lv, newCode) ? [newCode] : [];
+      registerAndRender({ preserveView: true });
+      renderSelectedList();
+      updateButtons();
+      updateCodeOutput();
+
+      const mergedNote = mergedGroups > 0
+        ? `，已按同级编码（${levelKeyOf(newCode, currentLevel)}）合并为同一区划`
+        : '';
+      updateStatus(`🔢 已写入区划代码 ${newCode}${mergedNote}。`);
+    }
+
+    // ============================================================
+    // 14. 分离 —— 按编码还原成合并前的区域
+    // ============================================================
+    function separateSelected() {
+      const lv = S();
+      const targets = (lv.selected || []).filter(c => lv.merges.has(normalizeAdcode(c)));
+      if (!targets.length) { updateStatus('⚠️ 请先选中至少一个由合并得到的区域。'); return; }
+
+      const restoredNames = [];
+      targets.forEach(raw => {
+        const code = normalizeAdcode(raw);
+        const rec = lv.merges.get(code);
+        const idx = lv.editable.features.findIndex(f => codeOf(f) === code);
+        if (idx >= 0) lv.editable.features.splice(idx, 1);
+
+        rec.parts.forEach(p => {
+          const copy = {
+            type: 'Feature',
+            properties: { name: p.name, adcode: p.adcode },
+            geometry: JSON.parse(JSON.stringify(p.geometry))
+          };
+          if (p.isDirect) copy.properties.isDirect = true;
+          lv.editable.features.push(copy);
+          if (!restoredNames.includes(p.name)) restoredNames.push(p.name);
+          if (currentLevel === 'city') markProvinceDirty(p.adcode);
+        });
+
+        lv.merges.delete(code);
+        if (currentLevel === 'city') markProvinceDirty(code);
+      });
+
+      lv.selected = [];
+      registerAndRender({ preserveView: true });
+      renderSelectedList();
+      updateButtons();
+      updateStatus(`🔓 已分离 ${targets.length} 个合并区域，还原为：${restoredNames.join('、')}`);
+    }
+
+    // ============================================================
+    // 15. 直辖市（同样按编码识别）
+    // ============================================================
+    function toggleDirect() {
+      const lv = S();
+      if (currentLevel !== 'city') { updateStatus('⚠️ 仅「地级区划」层级支持设为直辖市。'); return; }
+
+      const feats = selectedFeatures(lv);
+      if (!feats.length) { updateStatus('⚠️ 请先选中至少一个地级区域。'); return; }
+
+      const allDirect = feats.every(f => f.properties.isDirect === true);
+      const next = !allDirect;
+
+      feats.forEach(f => {
+        if (next) {
+          f.properties.isDirect = true;
+          f.properties.level = 'province';
+        } else {
+          delete f.properties.isDirect;
+          f.properties.level = 'city';
+        }
+        markProvinceDirty(codeOf(f));
+      });
+
+      const names = feats.map(f => f.properties.name).join('、');
+      registerAndRender({ preserveView: true });
+      renderSelectedList();
+      updateButtons();
+      updateStatus(next
+        ? `⬆️ 已将「${names}」设为直辖市。切换到省级视图即可看到变化。`
+        : `⬇️ 已取消「${names}」的直辖市状态。`);
+    }
+
+    // ============================================================
+    // 16. 输出区划代码（选中的就是编码本身）
+    // ============================================================
+    function updateCodeOutput() {
+      const lv = S();
+      const codes = (lv.selected || []).slice();
+      const box = document.getElementById('codeOutput');
+      box.value = codes.join('\n');
+      const counter = document.getElementById('codeCount');
+      if (counter) counter.textContent = `${codes.length} 项`;
+    }
+
+    // ============================================================
+    // 17. 重置
+    // ============================================================
+    function resetMap() {
+      const lv = S();
+      lv.editable = JSON.parse(JSON.stringify(lv.original));
+      lv.merges.clear();
+      lv.selected = [];
+
+      // 省级重置只恢复省级记录的显示名；省级轮廓由地级合成，缓存可以保留
+      if (currentLevel === 'city') clearProvinceSyncCache();
+
+      registerAndRender({ preserveView: true });
+      renderSelectedList();
+      updateButtons();
+      updateStatus(`🔄 ${lv.name}区划已重置。`);
+    }
+    // ============================================================
+    // 18. 事件绑定
+    // ============================================================
+    function bindToolbarEvents() {
+      document.getElementById('btn-level').addEventListener('click', toggleLevel);
+      document.getElementById('btn-cache-all').addEventListener('click', cacheAllData);
+      document.getElementById('btn-clear-cache').addEventListener('click', clearCache);
+      document.getElementById('btn-export-cache').addEventListener('click', exportCacheToFile);
+
+      const fileInput = document.getElementById('importFile');
+      document.getElementById('btn-import-cache').addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (f) importCacheFromFile(f);
+      });
+
+      window.addEventListener('dragover', (e) => { e.preventDefault(); });
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f) importCacheFromFile(f);
+      });
+
+      document.getElementById('btn-merge').addEventListener('click', mergeSelected);
+      document.getElementById('btn-rename').addEventListener('click', renameSelected);
+      document.getElementById('btn-separate').addEventListener('click', separateSelected);
+      document.getElementById('btn-direct').addEventListener('click', toggleDirect);
+      document.getElementById('btn-reset').addEventListener('click', resetMap);
+      document.getElementById('btn-edit-code').addEventListener('click', editCodeSelected);
+
+      window.addEventListener('resize', () => { if (chart) chart.resize(); });
+    }
+
+    function updateStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+
+</html>
